@@ -15,7 +15,7 @@ class Poisson_FIM(adv.FIM):
     fim[1,1] = (1-design[0])*self.omega[1]
     return fim
 
-def make_design_Poisson(x):
+def make_design(x):
   return torch.sigmoid(x)
 
 exampleFIM = Poisson_FIM(omega=(2., 1.))
@@ -24,29 +24,29 @@ exampleFIM = Poisson_FIM(omega=(2., 1.))
 ##VECTOR FIELD
 ##############
 
-design_grid, A11_grid = np.meshgrid(np.linspace(0.35, 0.7, 10),
-                                    np.linspace(0.82, 0.87, 10))
-design_grad_grid = np.zeros_like(design_grid)
-A11_grad_grid = np.zeros_like(A11_grid)
+logit_design_grid, eta11_grid = np.meshgrid(np.linspace(-0.65, 0.65, 10),
+                                            np.linspace(-0.2, -0.13, 10))
+logit_design_grad_grid = np.zeros_like(logit_design_grid)
+eta11_grad_grid = np.zeros_like(eta11_grid)
 for i in range(10):
   for j in range(10):
-    design = torch.tensor([design_grid[i,j]], requires_grad=True)
-    A11 = torch.tensor(A11_grid[i,j], requires_grad=True)
-    A_raw = torch.zeros(2, dtype=torch.float32)
-    A_raw[1] += torch.log(A11)
-    A = exampleFIM.makeA(A_raw)
-    logit_design = torch.log(design / (1.-design))
-    objective = exampleFIM.estimateK(logit_design, A)
+    logit_design = torch.tensor([logit_design_grid[i,j]], requires_grad=True)
+    eta11 = torch.tensor(eta11_grid[i,j], requires_grad=True)
+    eta = torch.zeros(2, dtype=torch.float32)
+    eta[1] += eta11
+    A = exampleFIM.makeA(eta)
+    design = make_design(logit_design)
+    objective = exampleFIM.estimateK(design, A)
     objective.backward()
-    design_grad_grid[i,j] = float(design.grad)
-    A11_grad_grid[i,j] = float(A11.grad)
+    logit_design_grad_grid[i,j] = float(logit_design.grad)
+    eta11_grad_grid[i,j] = float(eta11.grad)
 
-vector_field_plot = plt.quiver(design_grid, A11_grid,
-                               -design_grad_grid, A11_grad_grid/100,
+vector_field_plot = plt.quiver(logit_design_grid, eta11_grid,
+                               -logit_design_grad_grid, eta11_grad_grid/1000,
                                angles='xy')
 
-vector_field_plot.axes.set_xlabel(r'$\tau$')
-vector_field_plot.axes.set_ylabel(r'$A_{11}$')
+vector_field_plot.axes.set_xlabel(r'$\lambda$')
+vector_field_plot.axes.set_ylabel(r'$\eta_{11}$')
 
 ##############
 ##OPTIMISATION
@@ -60,7 +60,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad1 = adv.AdvDesign(fim=exampleFIM, make_design=make_design_Poisson,
+ad1 = adv.AdvDesign(fim=exampleFIM, make_design=make_design,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -75,7 +75,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad2 = adv.AdvDesign(fim=exampleFIM, make_design=make_design_Poisson,
+ad2 = adv.AdvDesign(fim=exampleFIM, make_design=make_design,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -90,7 +90,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad3 = adv.AdvDesign(fim=exampleFIM, make_design=make_design_Poisson,
+ad3 = adv.AdvDesign(fim=exampleFIM, make_design=make_design,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -98,45 +98,38 @@ ad3 = adv.AdvDesign(fim=exampleFIM, make_design=make_design_Poisson,
 ad3.optimize(25000)
 output3 = ad3.stacked_output()
 
+logit = lambda x: np.log(x/(1-x))
 dot_indices = range(99, 5000, 100)
-plt.plot(output3['design'][dot_indices,0],
-         output3['A'][dot_indices,0,0], 'or')
-plt.plot(output2['design'][dot_indices,0],
-         output2['A'][dot_indices,0,0], 'og')
-plt.plot(output1['design'][dot_indices,0],
-         output1['A'][dot_indices,0,0], 'ob')
-plt.plot(output3['design'][:,0], output3['A'][:,0,0], '-r')
-plt.plot(output2['design'][:,0], output2['A'][:,0,0], '-g')
-plt.plot(output1['design'][:,0], output1['A'][:,0,0], '-b')
+toplot = [(output1, 'b'), (output2, 'g'), (output3, 'r')]
+for (o, col) in toplot:
+  plt.plot(logit(o['design'][dot_indices,0]),
+           np.log(o['A'][dot_indices,0,0]), 'o' + col)
+  plt.plot(logit(o['design'][:,0]), np.log(o['A'][:,0,0]), '-' + col)
 
-
-plt.xlim([0.35, 0.7])
-plt.ylim([0.82, 0.87])
-
-design_grid, A11_grid = np.meshgrid(np.linspace(0.35, 0.7, 10),
-                                    np.linspace(0.82, 0.87, 10))
+plt.xlim([-0.68, 0.68])
+plt.ylim([-0.202, -0.128])
 
 plt.tight_layout()
 plt.savefig('poisson_vector_field.pdf')
 
 # plt.figure()
-# plt.plot(output1['iterations'], output1['logit_design'])
-# plt.plot(output2['iterations'], output2['logit_design'])
-# plt.plot(output3['iterations'], output3['logit_design'])
+# for (o, _) in toplot:
+#   plt.plot(o['iterations'], logit(o['design'][:,0]))
+
 # plt.ylim([-0.7, 0.7])
 # plt.xlabel('Iterations')
-# plt.ylabel('$\lambda$')
+# plt.ylabel(r'$\lambda$')
 # plt.tight_layout()
 # plt.savefig('poisson_traceplot_design.pdf')
 
 # plt.figure()
-# plt.plot(output1['iterations'], output1['eta11'])
-# plt.plot(output2['iterations'], output2['eta11'])
-# plt.plot(output3['iterations'], output3['eta11'])
+# for (o, _) in toplot:
+#   plt.plot(o['iterations'], np.log(o['A'][:,0,0]))
+
 # plt.ylim([-0.205, -0.135])
 # plt.xlabel('Iterations')
-# plt.ylabel('$a_{11}$')
+# plt.ylabel(r'$\eta_{11}$')
 # plt.tight_layout()
 # plt.savefig('poisson_traceplot_param.pdf')
 
-wait = input('Press enter to terminate')
+# wait = input('Press enter to terminate')
