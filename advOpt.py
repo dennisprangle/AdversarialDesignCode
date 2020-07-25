@@ -10,8 +10,8 @@ class FIM:
     """Return number of parameters"""
     raise NotImplementedError
 
-  def set_advDesign(self, advDesign):
-    """Set the AdvDesign object this is embedded within.
+  def set_advOpt(self, advOpt):
+    """Set the AdvOpt object this is embedded within.
     This allows complicated FIM subclasses to access its details."""
     pass
   
@@ -49,22 +49,23 @@ class FIM:
     return A
 
   
-class AdvDesign:
-  """A Bayesian experimental design problem"""
+class AdvOpt:
+  """Optimises a Bayesian experimental design problem"""
 
-  def __init__(self, fim, make_design,
+  def __init__(self, fim,
                optimizers, schedulers,
                init_design_raw, init_A_raw,
+               make_design=lambda x:x,
                report_every=500, text_progress=True):
     """
     `fim` - object of `FIM` class
-    `make_design` - function mapping a `design_raw` vector to design
     `optimizers` - dict of optimizers for `experimenter` and `adversary`
     (with no params)
     `schedulers` - dict of schedulers for `experimenter` and `adversary`
     `init_design_raw` - initial values for `design_raw` (tuple, list or array)
     `init_A_raw` - initial values for variables controlling A matrix
     (tuple, list or array)
+    `make_design` - function mapping a `design_raw` vector to design
     `report_every` - how often to record/report progress
     `text_progress` - report text summaries of progress if `True`
     """
@@ -72,7 +73,7 @@ class AdvDesign:
     self.text_progress = text_progress
 
     self.fim = fim
-    self.fim.set_advDesign(self)
+    self.fim.set_advOpt(self)
     self.make_design = make_design
     
     self.design_raw = torch.tensor(init_design_raw, dtype=torch.float32,

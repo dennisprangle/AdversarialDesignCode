@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import advDesign as adv
+import advOpt as adv
 plt.ion()
 
 class Poisson_FIM(adv.FIM):
@@ -14,9 +14,6 @@ class Poisson_FIM(adv.FIM):
     fim[0,0] = design[0]*self.omega[0]
     fim[1,1] = (1-design[0])*self.omega[1]
     return fim
-
-def make_design(x):
-  return torch.sigmoid(x)
 
 exampleFIM = Poisson_FIM(omega=(2., 1.))
 
@@ -35,7 +32,7 @@ for i in range(10):
     eta = torch.zeros(2, dtype=torch.float32)
     eta[1] += eta11
     A = exampleFIM.makeA(eta)
-    design = make_design(logit_design)
+    design = torch.sigmoid(logit_design)
     objective = exampleFIM.estimateK(design, A)
     objective.backward()
     logit_design_grad_grid[i,j] = float(logit_design.grad)
@@ -60,7 +57,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad1 = adv.AdvDesign(fim=exampleFIM, make_design=make_design,
+ad1 = adv.AdvOpt(fim=exampleFIM, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -75,7 +72,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad2 = adv.AdvDesign(fim=exampleFIM, make_design=make_design,
+ad2 = adv.AdvOpt(fim=exampleFIM, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -90,7 +87,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad3 = adv.AdvDesign(fim=exampleFIM, make_design=make_design,
+ad3 = adv.AdvOpt(fim=exampleFIM, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
