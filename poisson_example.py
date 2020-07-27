@@ -9,7 +9,7 @@ class Poisson_FIM(adv.FIM):
     self.omega = omega
     self.npars = 2
 
-  def estimate(self, design):
+  def estimate_expected_FIM(self, design):
     fim = torch.zeros((2,2), dtype=torch.float32)
     fim[0,0] = design[0]*self.omega[0]
     fim[1,1] = (1-design[0])*self.omega[1]
@@ -22,11 +22,11 @@ exampleFIM = Poisson_FIM(omega=(2., 1.))
 ##############
 
 logit_design_grid, eta11_grid = np.meshgrid(np.linspace(-0.65, 0.65, 10),
-                                            np.linspace(-0.2, -0.13, 10))
+                                            np.linspace(-0.2, -0.14, 11))
 logit_design_grad_grid = np.zeros_like(logit_design_grid)
 eta11_grad_grid = np.zeros_like(eta11_grid)
-for i in range(10):
-  for j in range(10):
+for i in range(eta11_grid.shape[0]):
+  for j in range(eta11_grid.shape[1]):
     logit_design = torch.tensor([logit_design_grid[i,j]], requires_grad=True)
     eta11 = torch.tensor(eta11_grid[i,j], requires_grad=True)
     eta = torch.zeros(2, dtype=torch.float32)
@@ -103,11 +103,13 @@ for (o, col) in toplot:
            np.log(o['A'][dot_indices,0,0]), 'o' + col)
   plt.plot(logit(o['design'][:,0]), np.log(o['A'][:,0,0]), '-' + col)
 
-plt.xlim([-0.68, 0.68])
-plt.ylim([-0.202, -0.128])
+plt.xlim([-0.7, 0.7])
+plt.ylim([-0.203, -0.137])
 
 plt.tight_layout()
 plt.savefig('poisson_vector_field.pdf')
+
+## Uncoment the following for traceplots
 
 # plt.figure()
 # for (o, _) in toplot:
