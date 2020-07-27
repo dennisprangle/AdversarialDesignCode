@@ -4,24 +4,37 @@ import numpy as np
 class FIM:
   """Fisher information matrix details"""
   def __init__(self):
-    self.npars = 0 #Subclasses must set this correctly
-
-  def npars(self):
-    """Return number of parameters"""
-    raise NotImplementedError
+    ##Following should be set by subclasses if needed
+    self.npars = None ## Positive integer: used in makeA (always needed)
+    self.nsamples = None ## Positive integer: used in estimate_expected_FIM
+    self.prior = None ## PyTorch distribution: used in estimate_expected_FIM
 
   def set_advOpt(self, advOpt):
     """Set the AdvOpt object this is embedded within.
     This allows complicated FIM subclasses to access its details."""
-    pass
-  
-  def estimate(self, design):
-    """Returns an estimate of the expected Fisher information"""
+    self.advOpt = advOpt
+
+  def estimate_FIM(self, theta, design):
+    """Return estimates of Fisher information matrices
+
+    `theta` is a `self.nsamples` x `self.npars` tensor of parameters
+    `design` is a single design
+
+    The output should be a `self.nsamples` x `self.npars` x `self.npars` tensor
+    """
     raise NotImplementedError
 
+  def estimate_expected_FIM(self, design):
+    """Return an estimate of the expected Fisher information"""
+    ## Default code performs Monte Carlo estimation.
+    ## Subclasses can override and use other approaches if desired.
+    theta = self.prior.sample((nsamples,))
+    fim = self.estimate_FIM(theta, design)
+    return torch.sum(fim, dim=0)
+
   def estimateK(self, design, A):
-    """Returns an estimate of K, the adversarial design objective"""
-    temp = self.estimate(design)
+    """Return an unbiased estimate of K, the adversarial design objective"""
+    temp = self.estimate_expected_FIM(design)
     temp = torch.mm(A, temp)
     temp = torch.mm(temp, A.transpose(0,1))
     return -temp.trace()
@@ -78,7 +91,8 @@ class AdvOpt:
     
     self.design_raw = torch.tensor(init_design_raw, dtype=torch.float32,
                                    requires_grad=True)
-    adim = fim.npars * (fim.npars + 1) / 2 - 1
+    adim = fim.npars * (fim.npars + 1) / 2 - 1 ## i.e. number of non-zero entries
+                                               ## in triangular matrix, minus 1
     if len(init_A_raw) != adim:
       raise ValueError("init_A_raw wrong length, should be " + str(adim))    
     self.A_raw = torch.tensor(init_A_raw, dtype=torch.float32,
