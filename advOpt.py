@@ -28,7 +28,7 @@ class FIM:
     """Return an estimate of the expected Fisher information"""
     ## Default code performs Monte Carlo estimation.
     ## Subclasses can override and use other approaches if desired.
-    theta = self.prior.sample((nsamples,))
+    theta = self.prior.sample((self.nsamples,))
     fim = self.estimate_FIM(theta, design)
     return torch.sum(fim, dim=0)
 
