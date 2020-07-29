@@ -39,6 +39,13 @@ class FIM:
     temp = torch.mm(temp, A.transpose(0,1))
     return -temp.trace()
 
+  def eta_dim(self):
+    """Number of entries required in eta vector
+
+    i.e. count of non-zero entries in `npars` x `npars` triangular matrix minus 1
+    """
+    return self.npars * (self.npars + 1) // 2 - 1
+
   def makeA(self, x):
     """Convert vector `x` to a valid `A` matrix
     
@@ -84,6 +91,8 @@ class AdvOpt:
     """
     self.report_every = report_every
     self.text_progress = text_progress
+    if text_progress == True:
+      np.set_printoptions(precision=3)
 
     self.fim = fim
     self.fim.set_advOpt(self)
@@ -91,10 +100,9 @@ class AdvOpt:
     
     self.design_raw = torch.tensor(init_design_raw, dtype=torch.float32,
                                    requires_grad=True)
-    adim = fim.npars * (fim.npars + 1) / 2 - 1 ## i.e. number of non-zero entries
-                                               ## in triangular matrix, minus 1
-    if len(init_A_raw) != adim:
-      raise ValueError("init_A_raw wrong length, should be " + str(adim))    
+    eta_dim = fim.eta_dim()
+    if len(init_A_raw) != eta_dim:
+      raise ValueError("init_A_raw wrong length, should be " + str(eta_dim))
     self.A_raw = torch.tensor(init_A_raw, dtype=torch.float32,
                                    requires_grad=True)
     self.optimizers = optimizers
@@ -131,9 +139,9 @@ class AdvOpt:
         if self.text_progress:
           print("Iteration {:d}, objective {:.2f}".\
                 format(i+1, float(objective)))
-          print("design ", design_np)
-          print("A ", A_np)
-          print("Learning rate: experimenter {:.6f} adversary {:.6f}".\
+          print("Design:\n", design_np)
+          print("A matrix:\n", A_np)
+          print("Learning rate: experimenter {:.6f} adversary {:.6f}\n".\
                 format(self.optimizers['experimenter'].param_groups[0]['lr'],
                        self.optimizers['adversary'].param_groups[0]['lr']))
 
