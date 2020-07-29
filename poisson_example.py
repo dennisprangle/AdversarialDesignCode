@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 import advOpt as adv
 plt.ion()
 
+##############
+##DEFINITIONS
+##############
+
 class Poisson_FIM(adv.FIM):
   def __init__(self, omega):
     self.omega = omega
@@ -49,7 +53,7 @@ vector_field_plot.axes.set_ylabel(r'$\eta_{11}$')
 ##OPTIMISATION
 ##############
 
-dummy = torch.tensor(0.) #Because optimizer need some tensor to initialise
+dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
 opt_e = torch.optim.SGD(params=[dummy], lr=1e-2)
 opt_a = torch.optim.SGD(params=[dummy], lr=1e-3)
 sched_e = torch.optim.lr_scheduler.StepLR(opt_e, step_size=10**4, gamma=1)
