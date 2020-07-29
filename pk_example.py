@@ -5,9 +5,13 @@ import matplotlib.pyplot as plt
 import advOpt as adv
 plt.ion()
 
+##############
+##DEFINITIONS
+##############
+
 class PK_FIM(adv.FIM):
   def __init__(self, nsamples):
-    self.npars = 2
+    self.npars = 3
     self.nsamples = nsamples
     loc = torch.tensor(np.log((0.1, 1., 20.)), dtype=torch.float32)
     scale = torch.tensor(np.sqrt((0.05, 0.05, 0.05)), dtype=torch.float32)
@@ -33,8 +37,24 @@ class PK_FIM(adv.FIM):
     fim = torch.matmul(jacobian.transpose(1,2), jacobian)
     return fim
 
-  
-exampleFIM = PK_FIM(nsamples=100)
-dd = torch.tensor((1.0,2.0,3.0,4.0))
-AA = torch.eye(3)
-exampleFIM.estimateK(dd, AA)
+
+fim = PK_FIM(nsamples=100)
+
+##############
+##OPTIMISATION
+##############
+
+dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
+opt_e = torch.optim.Adam(params=[dummy])
+opt_a = torch.optim.Adam(params=[dummy])
+sched_e = torch.optim.lr_scheduler.StepLR(opt_e, step_size=10**4, gamma=1)
+sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
+optimizers = {'experimenter':opt_e, 'adversary':opt_a}
+schedulers = {'experimenter':sched_e, 'adversary':sched_a}
+
+advOpt = adv.AdvOpt(fim=fim,
+                    optimizers=optimizers, schedulers=schedulers,
+                    init_design_raw=np.random.uniform(0.,15.,10),
+                    init_A_raw=np.zeros(fim.eta_dim()),
+                    report_every=1000)
+advOpt.optimize(50000)
