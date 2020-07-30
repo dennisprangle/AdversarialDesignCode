@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from time import time
 
 class FIM:
   """Fisher information matrix details"""
@@ -30,7 +31,7 @@ class FIM:
     ## Subclasses can override and use other approaches if desired.
     theta = self.prior.sample((self.nsamples,))
     fim = self.estimate_FIM(theta, design)
-    return torch.sum(fim, dim=0)
+    return torch.mean(fim, dim=0)
 
   def estimateK(self, design, A):
     """Return an unbiased estimate of K, the adversarial design objective"""
@@ -38,6 +39,17 @@ class FIM:
     temp = torch.mm(A, temp)
     temp = torch.mm(temp, A.transpose(0,1))
     return -temp.trace()
+
+  def initialise_J_estimation(self):
+    """Initialise variables needed for estimating J"""
+    self.thetas_for_J = self.prior.sample((1000,))
+
+  def estimateJ(self, design):
+    """Return an estimate of J, the idealise objective"""
+    temp = self.estimate_FIM(self.thetas_for_J, design)
+    temp = torch.mean(temp, dim=0)
+    temp = torch.det(temp)
+    return np.log(temp.detach().numpy())
 
   def eta_dim(self):
     """Number of entries required in eta vector
@@ -76,7 +88,7 @@ class AdvOpt:
                optimizers, schedulers,
                init_design_raw, init_A_raw,
                make_design=lambda x:x,
-               report_every=500, text_progress=True):
+               report_every=500, text_progress=True, track_J=False):
     """
     `fim` - object of `FIM` class
     `optimizers` - dict of optimizers for `experimenter` and `adversary`
@@ -88,8 +100,11 @@ class AdvOpt:
     `make_design` - function mapping a `design_raw` vector to design
     `report_every` - how often to record/report progress
     `text_progress` - report text summaries of progress if `True`
+    `track_J` - whether to record estimates of the J objective
     """
+    self.start_time = time()
     self.report_every = report_every
+    self.track_J = track_J
     self.text_progress = text_progress
     if text_progress == True:
       np.set_printoptions(precision=3)
@@ -110,7 +125,11 @@ class AdvOpt:
     self.optimizers['experimenter'].add_param_group({'params': self.design_raw})
     self.optimizers['adversary'].add_param_group({'params': self.A_raw})
 
-    self.output = {'iterations':[], 'design':[], 'A':[], 'objective':[]}
+    self.output = {'iterations':[], 'time':[], 'design':[], 'A':[],
+                   'objectiveK':[]}
+    if track_J == True:
+      self.fim.initialise_J_estimation()
+      self.output['objectiveJ'] = []
     self.iteration = 0
     
     
@@ -130,20 +149,59 @@ class AdvOpt:
       self.schedulers['adversary'].step()
       self.iteration += 1
       if (self.iteration % self.report_every) == 0:
+        elapsed = time() - self.start_time
+        self.output['time'].append(elapsed)
         self.output['iterations'].append(self.iteration)
         design_np = design.detach().numpy().copy()
         A_np = A.detach().numpy().copy()
         self.output['design'].append(design_np)
         self.output['A'].append(A_np)
-        self.output['objective'].append(float(objective))
+        self.output['objectiveK'].append(float(objective))
+        if self.track_J == True:
+          self.output['objectiveJ'].append(float(self.fim.estimateJ(design)))
         if self.text_progress:
-          print("Iteration {:d}, objective {:.2f}".\
-                format(i+1, float(objective)))
+          print("Iteration {:d}, time (mins) {:.1f}, K objective {:.2f}".\
+                format(i+1, elapsed/60, float(objective)))
           print("Design:\n", design_np)
           print("A matrix:\n", A_np)
           print("Learning rate: experimenter {:.6f} adversary {:.6f}\n".\
                 format(self.optimizers['experimenter'].param_groups[0]['lr'],
                        self.optimizers['adversary'].param_groups[0]['lr']))
+
+
+  def pointExchange(self, maxits=10):
+    """Point exchange optimisation to fine tune design
+
+    Currently this requires `self.design` to be a vector
+    """
+    design = self.make_design(self.design_raw).detach().numpy().copy()
+    bestJ = self.fim.estimateJ(torch.tensor(design))
+    best_new_design = design.copy()
+    for outer_counter in range(maxits):
+      improvement = False
+      for i in range(design.shape[0]):
+        for j in range(design.shape[0]):
+          if i==j:
+            continue
+          proposed_design = design.copy()
+          proposed_design[i] = design[j]
+          newJ = self.fim.estimateJ(torch.tensor(proposed_design))
+          if (newJ > bestJ):
+            bestJ = newJ
+            best_new_design = proposed_design
+            improvement = True
+
+      design = best_new_design
+
+      if self.text_progress==True:
+        print("Point exchange iteration {:d}".format(outer_counter+1))
+        print("Design:\n", np.sort(proposed_design))
+        print("Objective J estimate: {:.3f}\n".format(bestJ))
+
+      if improvement == False:
+        break
+
+    return design
 
 
   def stacked_output(self):

@@ -14,10 +14,27 @@ class Poisson_FIM(adv.FIM):
     self.npars = 2
 
   def estimate_expected_FIM(self, design):
+    """Return an estimate of the expected Fisher information
+
+    In fact for this model this calculates the exact expected Fisher information"""
     fim = torch.zeros((2,2), dtype=torch.float32)
     fim[0,0] = design[0]*self.omega[0]
     fim[1,1] = (1-design[0])*self.omega[1]
     return fim
+
+  def initialise_J_estimation(self):
+    """Initialise variables needed for estimating J
+
+    For this model, nothing is done"""
+    pass
+
+  def estimateJ(self, design):
+    """Return an estimate of J, the idealise objective
+
+    In fact for this model, this calculate the exact value"""
+    temp = self.estimate_expected_FIM(design)
+    temp = torch.det(temp)
+    return np.log(temp.detach().numpy())
 
 exampleFIM = Poisson_FIM(omega=(2., 1.))
 
