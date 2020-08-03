@@ -46,8 +46,9 @@ fim = PK_FIM(nsamples=100)
 
 dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
 opt_e = torch.optim.Adam(params=[dummy])
-opt_a = torch.optim.Adam(params=[dummy]) # Set lr=0. for SGD (i.e. FIG)
-## Following two lines use learning rate schedules following Heusel
+opt_a = torch.optim.Adam(params=[dummy]) # Set lr=0. for SGD not GDA (i.e. FIG)
+## Following two lines give a two time scale learning rate schedules
+## following Heusel
 #sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : ((n+1) ** -0.9))
 #sched_a = torch.optim.lr_scheduler.LambdaLR(opt_a, lambda n : ((n+1) ** -0.6))
 ## Following two lines use constant learning rates

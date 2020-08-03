@@ -88,6 +88,7 @@ class AdvOpt:
                optimizers, schedulers,
                init_design_raw, init_A_raw,
                make_design=lambda x:x,
+               penalty = lambda x:0.,
                report_every=500, text_progress=True, track_J=False):
     """
     `fim` - object of `FIM` class
@@ -97,7 +98,8 @@ class AdvOpt:
     `init_design_raw` - initial values for `design_raw` (tuple, list or array)
     `init_A_raw` - initial values for variables controlling A matrix
     (tuple, list or array)
-    `make_design` - function mapping a `design_raw` vector to design
+    `make_design` - function mapping a `design_raw` tensor to design
+    `penalty` - function mapping a `design` tensor to a penalty
     `report_every` - how often to record/report progress
     `text_progress` - report text summaries of progress if `True`
     `track_J` - whether to record estimates of the J objective
@@ -112,6 +114,7 @@ class AdvOpt:
     self.fim = fim
     self.fim.set_advOpt(self)
     self.make_design = make_design
+    self.penalty = penalty
     
     self.design_raw = torch.tensor(init_design_raw, dtype=torch.float32,
                                    requires_grad=True)
@@ -140,7 +143,7 @@ class AdvOpt:
         opt.zero_grad()
       A = self.fim.makeA(self.A_raw)
       design = self.make_design(self.design_raw)
-      objective = self.fim.estimateK(design, A)
+      objective = self.fim.estimateK(design, A) + self.penalty(design)
       objective.backward()
       self.A_raw.grad *= -1. # Do ascent instead of descent
       self.optimizers['experimenter'].step()

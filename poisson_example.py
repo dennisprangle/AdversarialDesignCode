@@ -36,7 +36,7 @@ class Poisson_FIM(adv.FIM):
     temp = torch.det(temp)
     return np.log(temp.detach().numpy())
 
-exampleFIM = Poisson_FIM(omega=(2., 1.))
+fim = Poisson_FIM(omega=(2., 1.))
 
 ##############
 ##VECTOR FIELD
@@ -52,9 +52,9 @@ for i in range(eta11_grid.shape[0]):
     eta11 = torch.tensor(eta11_grid[i,j], requires_grad=True)
     eta = torch.zeros(2, dtype=torch.float32)
     eta[1] += eta11
-    A = exampleFIM.makeA(eta)
+    A = fim.makeA(eta)
     design = torch.sigmoid(logit_design)
-    objective = exampleFIM.estimateK(design, A)
+    objective = fim.estimateK(design, A)
     objective.backward()
     logit_design_grad_grid[i,j] = float(logit_design.grad)
     eta11_grad_grid[i,j] = float(eta11.grad)
@@ -78,7 +78,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad1 = adv.AdvOpt(fim=exampleFIM, make_design=torch.sigmoid,
+ad1 = adv.AdvOpt(fim=fim, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -93,7 +93,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad2 = adv.AdvOpt(fim=exampleFIM, make_design=torch.sigmoid,
+ad2 = adv.AdvOpt(fim=fim, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -108,7 +108,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad3 = adv.AdvOpt(fim=exampleFIM, make_design=torch.sigmoid,
+ad3 = adv.AdvOpt(fim=fim, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
