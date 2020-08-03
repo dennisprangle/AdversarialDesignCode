@@ -18,13 +18,6 @@ class PK_FIM(adv.FIM):
     self.prior = LogNormal(loc, scale)
 
   def estimate_FIM(self, theta, design):
-    # Unvectorised code for reference (theta is a vector)
-    # x = 400. * theta[1] * (torch.exp(-theta[0]*design) - torch.exp(-theta[1]*design)) / (theta[2]*(theta[1]-theta[0]))
-    # grad0 = x/(theta[1]-theta[0]) - design*400.*theta[1]/(theta[2]*(theta[1]-theta[0]))*torch.exp(-theta[0]*design)
-    # grad1 = x/theta[1] - x/(theta[1]-theta[0]) + design*400.*theta[1]*torch.exp(-theta[1]*design)/(theta[2]*(theta[1]-theta[0]))
-    # grad2 = -x/theta[2]
-    # jacobian = torch.stack((grad0, grad1, grad2), dim=1)
-    # fim = torch.mm(jacobian.transpose(0,1), jacobian)
     design = design.unsqueeze(0)
     theta1 = theta[:, 0:1]
     theta2 = theta[:, 1:2]
