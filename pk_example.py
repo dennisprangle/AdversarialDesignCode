@@ -1,9 +1,9 @@
 import torch
 from torch.distributions import LogNormal
 import numpy as np
-import matplotlib.pyplot as plt
 import advOpt as adv
-plt.ion()
+from time import time
+import pickle
 
 ##############
 ##DEFINITIONS
@@ -37,66 +37,42 @@ fim = PK_FIM(nsamples=100)
 ##OPTIMISATION
 ##############
 
-dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
-opt_e = torch.optim.Adam(params=[dummy])
-opt_a = torch.optim.Adam(params=[dummy]) # Set lr=0. for SGD not GDA (i.e. FIG)
-## Following two lines give a two time scale learning rate schedules
-## following Heusel
-#sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : ((n+1) ** -0.9))
-#sched_a = torch.optim.lr_scheduler.LambdaLR(opt_a, lambda n : ((n+1) ** -0.6))
-## Following two lines use constant learning rates
-sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : 1.)
-sched_a = torch.optim.lr_scheduler.LambdaLR(opt_a, lambda n : 1.)
-optimizers = {'experimenter':opt_e, 'adversary':opt_a}
-schedulers = {'experimenter':sched_e, 'adversary':sched_a}
+def doOptimisation():
+  dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
+  opt_e = torch.optim.Adam(params=[dummy])
+  opt_a = torch.optim.Adam(params=[dummy]) # Set lr=0. for SGD not GDA (i.e. FIG)
+  ## Following two lines give a two time scale learning rate schedules
+  ## following Heusel
+  #sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : ((n+1) ** -0.9))
+  #sched_a = torch.optim.lr_scheduler.LambdaLR(opt_a, lambda n : ((n+1) ** -0.6))
+  ## Following two lines use constant learning rates
+  sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : 1.)
+  sched_a = torch.optim.lr_scheduler.LambdaLR(opt_a, lambda n : 1.)
+  optimizers = {'experimenter':opt_e, 'adversary':opt_a}
+  schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-init_design = np.random.uniform(0.,24.,15) # 15 samples from U[0,24]
-init_design = np.sort(init_design) # Just so progress messages easier to read
+  init_design = np.random.uniform(0.,24.,15) # 15 samples from U[0,24]
+  init_design = np.sort(init_design) # Just so progress messages easier to read
 
-advOpt = adv.AdvOpt(fim=fim,
-                    optimizers=optimizers, schedulers=schedulers,
-                    init_design_raw=init_design,
-                    init_A_raw=np.zeros(fim.eta_dim()),
-                    report_every=100, track_J=True)
-advOpt.optimize(30000)
-final_design = np.sort(advOpt.pointExchange())
+  advOpt = adv.AdvOpt(fim=fim,
+                      optimizers=optimizers, schedulers=schedulers,
+                      init_design_raw=init_design,
+                      init_A_raw=np.zeros(fim.eta_dim()),
+                      report_every=100, track_J=True,
+                      text_progress=False)
+  advOpt.optimize(30000)
+  output = advOpt.stacked_output()
+  start_time = time()
+  final_design = np.sort(advOpt.pointExchange())
+  point_exchange_time = time() - start_time
+  return output, final_design, point_exchange_time
 
-########
-##PLOTS
-########
 
-output = advOpt.stacked_output()
+nreps = 100
+out = []
+for i in range(nreps):
+  print("Iteration ", i+1)
+  out.append(doOptimisation())
 
-plt.figure()
-out_design = output['design']
-for i in range(out_design.shape[1]):
-  plt.plot(output['iterations'], out_design[:,i])
-
-plt.xlabel('Iterations')
-plt.ylabel('Observation time')
-plt.tight_layout()
-
-plt.figure()
-out_A = output['A']
-out_A = out_A.reshape((out_A.shape[0], -1))
-for i in range(out_A.shape[1]):
-  plt.plot(output['iterations'], out_A[:,i])
-
-plt.xlabel('Iterations')
-plt.ylabel('A matrix')
-plt.tight_layout()
-
-plt.figure()
-plt.plot(output['iterations'], output['objectiveK'])
-plt.xlabel('Iterations')
-plt.ylabel('K objective')
-plt.yscale('symlog')
-plt.tight_layout()
-
-plt.figure()
-plt.plot(output['iterations'], output['objectiveJ'])
-plt.xlabel('Iterations')
-plt.ylabel('J objective')
-plt.tight_layout()
-
-wait = input('Press enter to terminate')
+with open('pk_example.pkl', 'wb') as outfile:
+    pickle.dump(out, outfile)
