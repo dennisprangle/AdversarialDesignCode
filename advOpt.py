@@ -44,11 +44,18 @@ class FIM:
     """Initialise variables needed for estimating J"""
     self.thetas_for_J = self.prior.sample((1000,))
 
-  def estimateJ(self, design):
-    """Return an estimate of J, the idealise objective"""
+  def estimateJ(self, design, adv=True):
+    """Return an estimate of J objective
+
+    `design` - which design to use
+    `adv` - whether to calculate J_ADV (if True) or J_FIG (if False)
+    """
     temp = self.estimate_FIM(self.thetas_for_J, design)
     temp = torch.mean(temp, dim=0)
-    temp = torch.det(temp)
+    if adv:
+      temp = torch.det(temp)
+    else:
+      temp = torch.trace(temp)
     return np.log(temp.detach().numpy())
 
   def eta_dim(self):
@@ -89,7 +96,8 @@ class AdvOpt:
                init_design_raw, init_A_raw,
                make_design=lambda x:x,
                penalty = lambda x:0.,
-               report_every=500, text_progress=True, track_J=False):
+               report_every=500, text_progress=True,
+               track_J=None):
     """
     `fim` - object of `FIM` class
     `optimizers` - dict of optimizers for `experimenter` and `adversary`
@@ -102,7 +110,7 @@ class AdvOpt:
     `penalty` - function mapping a `design` tensor to a penalty
     `report_every` - how often to record/report progress
     `text_progress` - report text summaries of progress if `True`
-    `track_J` - whether to record estimates of the J objective
+    `track_J` - can be "ADV", "FIG" or None
     """
     self.start_time = time()
     self.report_every = report_every
@@ -130,7 +138,7 @@ class AdvOpt:
 
     self.output = {'iterations':[], 'time':[], 'design':[], 'A':[],
                    'objectiveK':[]}
-    if track_J == True:
+    if track_J is not None:
       self.fim.initialise_J_estimation()
       self.output['objectiveJ'] = []
     self.iteration = 0
@@ -160,8 +168,11 @@ class AdvOpt:
         self.output['design'].append(design_np)
         self.output['A'].append(A_np)
         self.output['objectiveK'].append(float(objective))
-        if self.track_J == True:
-          self.output['objectiveJ'].append(float(self.fim.estimateJ(design)))
+        if self.track_J == "ADV":
+          self.output['objectiveJ'].append(float(self.fim.estimateJ(design, adv=True)))
+        elif self.track_J == "FIG":
+          self.output['objectiveJ'].append(float(self.fim.estimateJ(design, adv=False)))
+
         if self.text_progress:
           print("Iteration {:d}, time (mins) {:.1f}, K objective {:.2f}".\
                 format(i+1, elapsed/60, float(objective)))
@@ -172,13 +183,16 @@ class AdvOpt:
                        self.optimizers['adversary'].param_groups[0]['lr']))
 
 
-  def pointExchange(self, maxits=10):
+  def pointExchange(self, maxits=10, adv=True):
     """Point exchange optimisation to fine tune design
 
     Currently this requires `self.design` to be a vector
+
+    `maxits` is maximum number of iterations to use
+    `adv` is True for the J_ADV objective or False for J_FIG objective
     """
     design = self.make_design(self.design_raw).detach().numpy().copy()
-    bestJ = self.fim.estimateJ(torch.tensor(design))
+    bestJ = self.fim.estimateJ(torch.tensor(design), adv)
     best_new_design = design.copy()
     for outer_counter in range(maxits):
       improvement = False
@@ -188,7 +202,7 @@ class AdvOpt:
             continue
           proposed_design = design.copy()
           proposed_design[i] = design[j]
-          newJ = self.fim.estimateJ(torch.tensor(proposed_design))
+          newJ = self.fim.estimateJ(torch.tensor(proposed_design), adv)
           if (newJ > bestJ):
             bestJ = newJ
             best_new_design = proposed_design

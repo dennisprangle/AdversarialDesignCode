@@ -1,14 +1,13 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import advOpt as adv
-plt.ion()
+import advOpt
 
 ##############
 ##DEFINITIONS
 ##############
 
-class Poisson_FIM(adv.FIM):
+class Poisson_FIM(advOpt.FIM):
   def __init__(self, omega):
     self.omega = omega
     self.npars = 2
@@ -28,13 +27,21 @@ class Poisson_FIM(adv.FIM):
     For this model, nothing is done"""
     pass
 
-  def estimateJ(self, design):
-    """Return an estimate of J, the idealise objective
+  def estimateJ(self, design, adv=True):
+    """Return an estimate of J objective
 
-    In fact for this model, this calculate the exact value"""
+    In fact for this model, this calculates the exact value.
+
+    `design` - which design to use
+    `adv` - whether to calculate J_ADV (if True) or J_FIG (if False)
+    """
     temp = self.estimate_expected_FIM(design)
-    temp = torch.det(temp)
-    return np.log(temp.detach().numpy())
+    if adv:
+      temp = torch.det(temp)
+    else:
+      temp = torch.trace(temp)
+    return np.log(temp.detach().numpy())  
+
 
 fim = Poisson_FIM(omega=(2., 1.))
 
@@ -78,7 +85,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad1 = adv.AdvOpt(fim=fim, make_design=torch.sigmoid,
+ad1 = advOpt.AdvOpt(fim=fim, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -93,7 +100,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad2 = adv.AdvOpt(fim=fim, make_design=torch.sigmoid,
+ad2 = advOpt.AdvOpt(fim=fim, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -108,7 +115,7 @@ sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
 optimizers = {'experimenter':opt_e, 'adversary':opt_a}
 schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-ad3 = adv.AdvOpt(fim=fim, make_design=torch.sigmoid,
+ad3 = advOpt.AdvOpt(fim=fim, make_design=torch.sigmoid,
                     optimizers=optimizers, schedulers=schedulers,
                     init_design_raw=[-0.2],
                     init_A_raw=(0., -0.15),
@@ -128,28 +135,22 @@ plt.xlim([-0.7, 0.7])
 plt.ylim([-0.203, -0.137])
 
 plt.tight_layout()
-plt.savefig('poisson_vector_field.pdf')
+plt.savefig('plots/poisson_vector_field.pdf')
 
-## Uncoment the following for traceplots
+plt.figure()
+for (o, _) in toplot:
+  plt.plot(o['iterations'], logit(o['design'][:,0]))
+plt.ylim([-0.7, 0.7])
+plt.xlabel('Iterations')
+plt.ylabel(r'$\lambda$')
+plt.tight_layout()
+plt.savefig('plots/poisson_traceplot_design.pdf')
 
-# plt.figure()
-# for (o, _) in toplot:
-#   plt.plot(o['iterations'], logit(o['design'][:,0]))
-
-# plt.ylim([-0.7, 0.7])
-# plt.xlabel('Iterations')
-# plt.ylabel(r'$\lambda$')
-# plt.tight_layout()
-# plt.savefig('poisson_traceplot_design.pdf')
-
-# plt.figure()
-# for (o, _) in toplot:
-#   plt.plot(o['iterations'], np.log(o['A'][:,0,0]))
-
-# plt.ylim([-0.205, -0.135])
-# plt.xlabel('Iterations')
-# plt.ylabel(r'$\eta_{11}$')
-# plt.tight_layout()
-# plt.savefig('poisson_traceplot_param.pdf')
-
-# wait = input('Press enter to terminate')
+plt.figure()
+for (o, _) in toplot:
+  plt.plot(o['iterations'], np.log(o['A'][:,0,0]))
+plt.ylim([-0.205, -0.135])
+plt.xlabel('Iterations')
+plt.ylabel(r'$\eta_{11}$')
+plt.tight_layout()
+plt.savefig('plots/poisson_traceplot_param.pdf')

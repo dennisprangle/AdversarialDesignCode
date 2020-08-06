@@ -1,7 +1,7 @@
 import torch
 from torch.distributions import LogNormal
 import numpy as np
-import advOpt as adv
+import advOpt
 from time import time
 import pickle
 
@@ -9,7 +9,7 @@ import pickle
 ##DEFINITIONS
 ##############
 
-class PK_FIM(adv.FIM):
+class PK_FIM(advOpt.FIM):
   def __init__(self, nsamples):
     self.npars = 3
     self.nsamples = nsamples
@@ -37,13 +37,13 @@ fim = PK_FIM(nsamples=100)
 ##OPTIMISATION
 ##############
 
-def doOptimisation(init_design, SGD=False):
+def doOptimisation(init_design, adv=True):
   dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
   opt_e = torch.optim.Adam(params=[dummy])
-  if SGD:
-    opt_a = torch.optim.Adam(params=[dummy], lr=0.) # SGD (no update of A)
-  else:
+  if adv:
     opt_a = torch.optim.Adam(params=[dummy]) # GDA
+  else:
+    opt_a = torch.optim.Adam(params=[dummy], lr=0.) # SGD (no update of A)
   ## Following two lines give a two time scale learning rate schedules
   ## following Heusel
   #sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : ((n+1) ** -0.9))
@@ -54,16 +54,17 @@ def doOptimisation(init_design, SGD=False):
   optimizers = {'experimenter':opt_e, 'adversary':opt_a}
   schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
-  advOpt = adv.AdvOpt(fim=fim,
-                      optimizers=optimizers, schedulers=schedulers,
-                      init_design_raw=init_design,
-                      init_A_raw=np.zeros(fim.eta_dim()),
-                      report_every=100, track_J=True,
-                      text_progress=False)
-  advOpt.optimize(30000)
-  output = advOpt.stacked_output()
+  track_J = "ADV" if adv else "FIG"
+  ad = advOpt.AdvOpt(fim=fim,
+                     optimizers=optimizers, schedulers=schedulers,
+                     init_design_raw=init_design,
+                     init_A_raw=np.zeros(fim.eta_dim()),
+                     report_every=100, track_J=track_J,
+                     text_progress=False)
+  ad.optimize(30000)
+  output = ad.stacked_output()
   start_time = time()
-  final_design = np.sort(advOpt.pointExchange())
+  final_design = np.sort(ad.pointExchange(adv=adv))
   point_exchange_time = time() - start_time
   return output, final_design, point_exchange_time
 
@@ -76,7 +77,7 @@ out_SGD = []
 for i in range(nreps):
   print("Iteration ", i+1)
   out_GDA.append(doOptimisation(init_designs[i,:]))
-  out_SGD.append(doOptimisation(init_designs[i,:], SGD=True))
+  out_SGD.append(doOptimisation(init_designs[i,:], adv=False))
 
 out = (out_GDA, out_SGD)
 

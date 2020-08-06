@@ -1,14 +1,14 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-import advOpt as adv
+import advOpt
 plt.ion()
 
 ##############
 ##DEFINITIONS
 ##############
 
-class geostats_FIM(adv.FIM):
+class geostats_FIM(advOpt.FIM):
   def __init__(self, length_scale=0.001, sigma1_squared=1., sigma2_squared=9.):
     self.length_scale_squared = np.power(length_scale, 2.)
     self.sigma1_squared = sigma1_squared
@@ -36,12 +36,19 @@ class geostats_FIM(adv.FIM):
     For this model, nothing is done"""
     pass
 
-  def estimateJ(self, design):
-    """Return an estimate of J, the idealise objective
+  def estimateJ(self, design, adv=True):
+    """Return an estimate of J objective
 
-    In fact for this model, this calculate the exact value"""
+    In fact for this model, this calculates the exact value.
+
+    `design` - which design to use
+    `adv` - whether to calculate J_ADV (if True) or J_FIG (if False)
+    """
     temp = self.estimate_expected_FIM(design)
-    temp = torch.det(temp)
+    if adv:
+      temp = torch.det(temp)
+    else:
+      temp = torch.trace(temp)
     return np.log(temp.detach().numpy())
 
 
@@ -71,20 +78,21 @@ ndesign = 500
 # ndesign samples from U[-0.5,0.5]^2
 init_design = np.random.uniform(-0.5, 0.5, (ndesign,2))
 
-advOpt = adv.AdvOpt(fim=fim,
-                    optimizers=optimizers, schedulers=schedulers,
-                    init_design_raw=init_design,
-                    init_A_raw=np.zeros(fim.eta_dim()),
-                    penalty=penalty,
-                    report_every=10, track_J=True,
-                    text_progress=False)
-advOpt.optimize(1000)
+ad = advOpt.AdvOpt(fim=fim,
+                   optimizers=optimizers, schedulers=schedulers,
+                   init_design_raw=init_design,
+                   init_A_raw=np.zeros(fim.eta_dim()),
+                   penalty=penalty,
+                   report_every=10,
+                   text_progress=False,
+                   track_J="ADV")
+ad.optimize(1000)
 
 ########
 ##PLOTS
 ########
 
-output = advOpt.stacked_output()
+output = ad.stacked_output()
 out_design = output['design']
 
 plt.figure()
