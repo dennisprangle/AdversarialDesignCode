@@ -37,10 +37,13 @@ fim = PK_FIM(nsamples=100)
 ##OPTIMISATION
 ##############
 
-def doOptimisation():
+def doOptimisation(init_design, SGD=False):
   dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
   opt_e = torch.optim.Adam(params=[dummy])
-  opt_a = torch.optim.Adam(params=[dummy]) # Set lr=0. for SGD not GDA (i.e. FIG)
+  if SGD:
+    opt_a = torch.optim.Adam(params=[dummy], lr=0.) # SGD (no update of A)
+  else:
+    opt_a = torch.optim.Adam(params=[dummy]) # GDA
   ## Following two lines give a two time scale learning rate schedules
   ## following Heusel
   #sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : ((n+1) ** -0.9))
@@ -50,9 +53,6 @@ def doOptimisation():
   sched_a = torch.optim.lr_scheduler.LambdaLR(opt_a, lambda n : 1.)
   optimizers = {'experimenter':opt_e, 'adversary':opt_a}
   schedulers = {'experimenter':sched_e, 'adversary':sched_a}
-
-  init_design = np.random.uniform(0.,24.,15) # 15 samples from U[0,24]
-  init_design = np.sort(init_design) # Just so progress messages easier to read
 
   advOpt = adv.AdvOpt(fim=fim,
                       optimizers=optimizers, schedulers=schedulers,
@@ -69,10 +69,16 @@ def doOptimisation():
 
 
 nreps = 100
-out = []
+init_designs = np.random.uniform(0.,24.,(nreps, 15)) # 15 samples from U[0,24]
+init_designs = np.sort(init_designs, axis=1) # So progress messages read easier
+out_GDA = []
+out_SGD = []
 for i in range(nreps):
   print("Iteration ", i+1)
-  out.append(doOptimisation())
+  out_GDA.append(doOptimisation(init_designs[i,:]))
+  out_SGD.append(doOptimisation(init_designs[i,:], SGD=True))
+
+out = (out_GDA, out_SGD)
 
 with open('pk_example.pkl', 'wb') as outfile:
     pickle.dump(out, outfile)
