@@ -60,5 +60,6 @@ for i in range(len(scales)):
     plt.plot(o['iterations'], o['objectiveJ'])
     plt.xlabel('Iterations')
     plt.ylabel('J objective')
+    plt.title(r'$\ell=${:.2f}'.format(s))
     plt.tight_layout()
     plt.savefig('plots/geo_J_objective_{:d}.pdf'.format(i))
