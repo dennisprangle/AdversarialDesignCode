@@ -61,24 +61,25 @@ class FIM:
     return self.npars * (self.npars + 1) // 2 - 1
 
   def makeA(self, x):
-    """Convert vector `x` to a valid `A` matrix
+    """Convert tensor `x` to tensor of `A` matrices
     
-    `x` should be a vector of length `npars(npars+1)/2 - 1`
+    The final dimension of `x` should be `npars(npars+1)/2 - 1`
 
-    Returns `A`, a `npars`x`npars` lower triangular matrix
-    with positive diagonal and bottom right element set to give determinant 1.
+    Returns `A`, a tensor with shape `x.shape[:-1] + (npars, npars)`
+    consisting of lower triangular matrices with positive diagonal
+    and bottom right element set to give determinant 1.
     The elements of `x` fill the remainder of the matrix in an
     anticlockwise spiral.
     See `math.fill_triangular` from tensorflow probability for more details:
     the code here uses the same mathematical approach.
     """
-    z = torch.tensor([0.], dtype=x.dtype)
-    x = torch.cat([z,x])
-    x_list = [x[self.npars:], torch.flip(x, [0])]
-    A = torch.reshape(torch.cat(x_list), (self.npars, self.npars))
+    z = torch.zeros(x.shape[:-1] + (1,), dtype=x.dtype)
+    x = torch.cat([z,x], dim=-1)
+    x_list = [x[..., self.npars:], x.flip(-1)]
+    A = torch.reshape(torch.cat(x_list, dim=-1), x.shape[:-1] + (self.npars, self.npars))
     A = torch.tril(A)
-    d = A.diagonal()
-    A[-1,-1] = -torch.sum(d)
+    d = A.diagonal(dim1=-2, dim2=-1)
+    A[...,-1,-1] = -d.sum(-1)
     d.exp_()
     return A
 
