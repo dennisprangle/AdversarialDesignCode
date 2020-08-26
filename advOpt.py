@@ -10,11 +10,6 @@ class FIM:
     self.nsamples = None ## Positive integer: used in estimate_expected_FIM
     self.prior = None ## PyTorch distribution: used in estimate_expected_FIM
 
-  def set_advOpt(self, advOpt):
-    """Set the AdvOpt object this is embedded within.
-    This allows complicated FIM subclasses to access its details."""
-    self.advOpt = advOpt
-
   def estimate_FIM(self, theta, design):
     """Return estimates of Fisher information matrices
 
@@ -120,7 +115,6 @@ class AdvOpt:
       np.set_printoptions(precision=3)
 
     self.fim = fim
-    self.fim.set_advOpt(self)
     self.make_design = make_design
     self.penalty = penalty
     
