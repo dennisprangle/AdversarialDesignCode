@@ -52,7 +52,7 @@ class geostats_FIM(advOpt.FIM):
 
 
 def penalty(x, max_abs_x=0.5, magnitude=1e1):
-  return magnitude * torch.sum(torch.relu(torch.abs(x) - max_abs_x))
+  return magnitude * torch.sum(torch.relu(torch.abs(x) - max_abs_x), dim=(-2,-1))
 
 ##############
 ##OPTIMISATION

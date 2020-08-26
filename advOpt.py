@@ -91,7 +91,7 @@ class AdvOpt:
                optimizers, schedulers,
                init_design_raw, init_A_raw,
                make_design=lambda x:x,
-               penalty = lambda x:0.,
+               penalty = lambda x:0., # Not batched but works via broadcasting
                report_every=500, text_progress=True,
                track_J=None):
     """
@@ -99,11 +99,10 @@ class AdvOpt:
     `optimizers` - dict of optimizers for `experimenter` and `adversary`
     (with no params)
     `schedulers` - dict of schedulers for `experimenter` and `adversary`
-    `init_design_raw` - initial values for `design_raw` (tuple, list or array)
-    `init_A_raw` - initial values for variables controlling A matrix
-    (tuple, list or array)
-    `make_design` - function mapping a `design_raw` tensor to design
-    `penalty` - function mapping a `design` tensor to a penalty
+    `init_design_raw` - batched initial values for `design_raw`
+    `init_A_raw` - batched initial values for variables controlling A matrix
+    `make_design` - function mapping a batched `design_raw` tensor to designs
+    `penalty` - function mapping a batched `design` tensor to penalties
     `report_every` - how often to record/report progress
     `text_progress` - report text summaries of progress if `True`
     `track_J` - can be "ADV", "FIG" or None
@@ -122,10 +121,10 @@ class AdvOpt:
     self.design_raw = torch.tensor(init_design_raw, dtype=torch.float32,
                                    requires_grad=True)
     eta_dim = fim.eta_dim()
-    if len(init_A_raw) != eta_dim:
-      raise ValueError("init_A_raw wrong length, should be " + str(eta_dim))
+    if init_A_raw.shape[1] != eta_dim:
+      raise ValueError("Last init_A_raw dimension wrong, should be " + str(eta_dim))
     self.A_raw = torch.tensor(init_A_raw, dtype=torch.float32,
-                                   requires_grad=True)
+                              requires_grad=True)
     self.optimizers = optimizers
     self.schedulers = schedulers
     self.optimizers['experimenter'].add_param_group({'params': self.design_raw})
@@ -170,9 +169,9 @@ class AdvOpt:
 
         if self.text_progress:
           print("Iteration {:d}, time (mins) {:.1f}, K objective {:.2f}".\
-                format(i+1, elapsed/60, float(objective)))
-          print("Design:\n", design_np)
-          print("A matrix:\n", A_np)
+                format(i+1, elapsed/60, float(objective[0])))
+          print("Design:\n", design_np[0, ...])
+          print("A matrix:\n", A_np[0, ...])
           print("Learning rate: experimenter {:.6f} adversary {:.6f}\n".\
                 format(self.optimizers['experimenter'].param_groups[0]['lr'],
                        self.optimizers['adversary'].param_groups[0]['lr']))
@@ -184,37 +183,41 @@ class AdvOpt:
     Currently this requires `self.design` to be a vector
 
     `maxits` is maximum number of iterations to use
-    `adv` is True for the J_ADV objective or False for J_FIG objective
+    `adv` should be True for the J_ADV objective or False for J_FIG objective
     """
-    design = self.make_design(self.design_raw).detach().numpy().copy()
-    bestJ = self.fim.estimateJ(torch.tensor(design), adv)
-    best_new_design = design.copy()
-    for outer_counter in range(maxits):
-      improvement = False
-      for i in range(design.shape[0]):
-        for j in range(design.shape[0]):
-          if i==j:
-            continue
-          proposed_design = design.copy()
-          proposed_design[i] = design[j]
-          newJ = self.fim.estimateJ(torch.tensor(proposed_design), adv)
-          if (newJ > bestJ):
-            bestJ = newJ
-            best_new_design = proposed_design
-            improvement = True
-
-      design = best_new_design
-
-      if self.text_progress==True:
-        print("Point exchange iteration {:d}".format(outer_counter+1))
-        print("Design:\n", np.sort(proposed_design))
-        print("Objective J estimate: {:.3f}\n".format(bestJ))
-
-      if improvement == False:
-        break
-
-    return design
-
+    designs = self.make_design(self.design_raw).detach().numpy().copy()
+    for rep in range(designs.shape[0]):
+      design = designs[rep, ...]
+      bestJ = self.fim.estimateJ(torch.tensor(design), adv)
+      best_new_design = design.copy()
+      for outer_counter in range(maxits):
+        improvement = False
+        for i in range(design.shape[0]):
+          for j in range(design.shape[0]):
+            if i==j:
+              continue
+            proposed_design = design.copy()
+            proposed_design[i] = design[j]
+            newJ = self.fim.estimateJ(torch.tensor(proposed_design), adv)
+            if (newJ > bestJ):
+              bestJ = newJ
+              best_new_design = proposed_design
+              improvement = True
+          ## End j for loop
+        ## End i for loop
+        design = best_new_design
+        if self.text_progress==True:
+          print("Replicate {:d}".format(rep+1))
+          print("Point exchange iteration {:d}".format(outer_counter+1))
+          print("Design:\n", np.sort(proposed_design))
+          print("Objective J estimate: {:.3f}\n".format(bestJ))
+        if improvement == False:
+          break        
+      ## End outer_counter for loop
+      designs[rep, ...] = design
+    ## End rep for loop
+    return designs
+  
 
   def stacked_output(self):
     """Return optimisation output stacked into arrays"""
