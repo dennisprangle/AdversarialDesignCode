@@ -178,7 +178,7 @@ class AdvOpt:
         if self.track_J == "ADV":
           self.output['objectiveJ'].append(self.fim.estimateJ(design, adv=True).detach().numpy().copy())
         elif self.track_J == "FIG":
-          self.output['objectiveJ'].append(self.fim.estimateJ(design, adv=False),detach().numpy().copy())
+          self.output['objectiveJ'].append(self.fim.estimateJ(design, adv=False).detach().numpy().copy())
 
         if self.text_progress:
           print("Iteration {:d}, time (mins) {:.1f}, K objective {:.2f}".\
