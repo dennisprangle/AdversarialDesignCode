@@ -102,6 +102,7 @@ plt.savefig('plots/J_SGD_trace.pdf')
 
 plt.figure()
 gda_designs = out_GDA['design'][-1,...]
+gda_designs = np.sort(gda_designs, 1)
 design_index = [i+1 for i in range(15)]
 #Commented out lines do a line plot instead
 #gda_designs = np.vstack(gda_designs)
@@ -127,6 +128,7 @@ plt.savefig('plots/GDA_and_gda_pe_designs.pdf')
 
 plt.figure()
 sgd_designs = out_SGD['design'][-1,...]
+sgd_designs = np.sort(sgd_designs, 1)
 design_index = [i+1 for i in range(15)]
 #Commented out lines do a line plot instead
 #sgd_designs = np.vstack(sgd_designs)
