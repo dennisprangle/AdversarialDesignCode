@@ -234,7 +234,8 @@ class AdvOpt:
 
   def stacked_output(self):
     """Return optimisation output stacked into arrays"""
-    ##TO DO: UPDATE SO OUTPUT IS BATCH x ITERATION x ...?
+    ##This always puts iteration as first dimension
+    ##Not intuitive for arrays which also have a batch dimension
     stacked_output = {}
     for key in self.output.keys():
       stacked_output[key] = np.stack(self.output[key])
