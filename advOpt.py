@@ -13,27 +13,38 @@ class FIM:
   def estimate_FIM(self, theta, design):
     """Return estimates of Fisher information matrices
 
-    `theta` is a `self.nsamples` x `self.npars` tensor of parameters
-    `design` is a single design
+    `theta` is a `self.nsamples` x `self.npars` tensor of parameters  
+    `design` is a tensor of designs, batched along dimension 0
 
-    The output should be a `self.nsamples` x `self.npars` x `self.npars` tensor
+    The output is a `design.shape[0]` x `self.nsamples` x `self.npars` x `self.npars` tensor
     """
     raise NotImplementedError
 
   def estimate_expected_FIM(self, design):
-    """Return an estimate of the expected Fisher information"""
+    """Return estimates of the expected Fisher information
+
+    `design` is a tensor of designs, batched along dimension 0
+
+    The output is a `design.shape[0]` x `self.npars` x `self.npars` tensor
+    """
     ## Default code performs Monte Carlo estimation.
     ## Subclasses can override and use other approaches if desired.
     theta = self.prior.sample((self.nsamples,))
     fim = self.estimate_FIM(theta, design)
-    return torch.mean(fim, dim=0)
+    return torch.mean(fim, dim=1)
 
   def estimateK(self, design, A):
-    """Return an unbiased estimate of K, the adversarial design objective"""
+    """Return unbiased estimates of K, the adversarial design objective
+
+    `design` is a tensor of designs, batched along dimension 0  
+    `A` is a tensor of A matrices, of dimension `design.shape[0]` x `self.npars` x `self.npars`
+
+    The output is a tensor of shape `design.shape[0]`
+    """
     temp = self.estimate_expected_FIM(design)
-    temp = torch.mm(A, temp)
-    temp = torch.mm(temp, A.transpose(0,1))
-    return -temp.trace()
+    temp = torch.matmul(A, temp)
+    temp = torch.matmul(temp, A.transpose(1,2))
+    return -temp.diagonal(dim1=1, dim2=2).sum(dim=1)
 
   def initialise_J_estimation(self):
     """Initialise variables needed for estimating J"""
@@ -42,16 +53,18 @@ class FIM:
   def estimateJ(self, design, adv=True):
     """Return an estimate of J objective
 
-    `design` - which design to use
+    `design` is a tensor of designs, batched along dimension 0  
     `adv` - whether to calculate J_ADV (if True) or J_FIG (if False)
+
+    The output is a tensor of shape `design.shape[0]`
     """
     temp = self.estimate_FIM(self.thetas_for_J, design)
-    temp = torch.mean(temp, dim=0)
+    temp = torch.mean(temp, dim=1)
     if adv:
       temp = torch.det(temp)
     else:
-      temp = torch.trace(temp)
-    return np.log(temp.detach().numpy())
+      temp = temp.diagonal(dim1=1,dim2=2).sum(dim=1)
+    return torch.log(temp)
 
   def eta_dim(self):
     """Number of entries required in eta vector
@@ -146,7 +159,7 @@ class AdvOpt:
       A = self.fim.makeA(self.A_raw)
       design = self.make_design(self.design_raw)
       objective = self.fim.estimateK(design, A) + self.penalty(design)
-      objective.backward()
+      objective.sum().backward()
       self.A_raw.grad *= -1. # Do ascent instead of descent
       self.optimizers['experimenter'].step()
       self.schedulers['experimenter'].step()
@@ -161,11 +174,11 @@ class AdvOpt:
         A_np = A.detach().numpy().copy()
         self.output['design'].append(design_np)
         self.output['A'].append(A_np)
-        self.output['objectiveK'].append(float(objective))
+        self.output['objectiveK'].append(objective.detach().numpy().copy())
         if self.track_J == "ADV":
-          self.output['objectiveJ'].append(float(self.fim.estimateJ(design, adv=True)))
+          self.output['objectiveJ'].append(self.fim.estimateJ(design, adv=True).detach().numpy().copy())
         elif self.track_J == "FIG":
-          self.output['objectiveJ'].append(float(self.fim.estimateJ(design, adv=False)))
+          self.output['objectiveJ'].append(self.fim.estimateJ(design, adv=False),detach().numpy().copy())
 
         if self.text_progress:
           print("Iteration {:d}, time (mins) {:.1f}, K objective {:.2f}".\
@@ -180,25 +193,25 @@ class AdvOpt:
   def pointExchange(self, maxits=10, adv=True):
     """Point exchange optimisation to fine tune design
 
-    Currently this requires `self.design` to be a vector
+    This requires `self.design` to have dimensions `batches` x `design points` x ...
 
     `maxits` is maximum number of iterations to use
     `adv` should be True for the J_ADV objective or False for J_FIG objective
     """
     designs = self.make_design(self.design_raw).detach().numpy().copy()
     for rep in range(designs.shape[0]):
-      design = designs[rep, ...]
-      bestJ = self.fim.estimateJ(torch.tensor(design), adv)
+      design = np.expand_dims(designs[rep, ...], 0)
+      bestJ = self.fim.estimateJ(torch.tensor(design), adv)[0].detach().numpy()
       best_new_design = design.copy()
       for outer_counter in range(maxits):
         improvement = False
-        for i in range(design.shape[0]):
-          for j in range(design.shape[0]):
+        for i in range(design.shape[1]):
+          for j in range(design.shape[1]):
             if i==j:
               continue
             proposed_design = design.copy()
-            proposed_design[i] = design[j]
-            newJ = self.fim.estimateJ(torch.tensor(proposed_design), adv)
+            proposed_design[0,i,...] = design[0,j,...]
+            newJ = self.fim.estimateJ(torch.tensor(proposed_design), adv)[0].detach().numpy()
             if (newJ > bestJ):
               bestJ = newJ
               best_new_design = proposed_design
@@ -209,7 +222,7 @@ class AdvOpt:
         if self.text_progress==True:
           print("Replicate {:d}".format(rep+1))
           print("Point exchange iteration {:d}".format(outer_counter+1))
-          print("Design:\n", np.sort(proposed_design))
+          print("Design:\n", np.sort(proposed_design[0,...]))
           print("Objective J estimate: {:.3f}\n".format(bestJ))
         if improvement == False:
           break        
@@ -221,6 +234,7 @@ class AdvOpt:
 
   def stacked_output(self):
     """Return optimisation output stacked into arrays"""
+    ##TO DO: UPDATE SO OUTPUT IS BATCH x ITERATION x ...?
     stacked_output = {}
     for key in self.output.keys():
       stacked_output[key] = np.stack(self.output[key])
