@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
+import argparse
 import advOpt
 
 ##############
@@ -15,10 +17,15 @@ class Poisson_FIM(advOpt.FIM):
   def estimate_expected_FIM(self, design):
     """Return an estimate of the expected Fisher information
 
-    In fact for this model this calculates the exact expected Fisher information"""
-    fim = torch.zeros((2,2), dtype=torch.float32)
-    fim[0,0] = design[0]*self.omega[0]
-    fim[1,1] = (1-design[0])*self.omega[1]
+    In fact for this model this calculates the exact expected Fisher information
+
+    `design` is a tensor of designs, batched along dimension 0
+
+    The output is a `design.shape[0]` x `self.npars` x `self.npars` tensor
+    """
+    fim = torch.zeros((design.shape[0],2,2), dtype=torch.float32)
+    fim[:,0,0] = design[:,0]*self.omega[0]
+    fim[:,1,1] = (1-design[:,0])*self.omega[1]
     return fim
 
   def initialise_J_estimation(self):
@@ -32,125 +39,52 @@ class Poisson_FIM(advOpt.FIM):
 
     In fact for this model, this calculates the exact value.
 
-    `design` - which design to use
+    `design` is a tensor of designs, batched along dimension 0  
     `adv` - whether to calculate J_ADV (if True) or J_FIG (if False)
+
+    The output is a tensor of shape `design.shape[0]`
     """
     temp = self.estimate_expected_FIM(design)
     if adv:
       temp = torch.det(temp)
     else:
-      temp = torch.trace(temp)
-    return np.log(temp.detach().numpy())  
+      temp = temp.diagonal(dim1=1,dim2=2).sum(dim=1)
+    return torch.log(temp)
+
+def main(gda_its, lr_e, lr_a, init_design_raw, init_A_raw, show_progress, name):
+  fim = Poisson_FIM(omega=(2., 1.))
+  dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
+  opt_e = torch.optim.SGD(params=[dummy], lr=lr_e)
+  opt_a = torch.optim.SGD(params=[dummy], lr=lr_a)
+  sched_e = torch.optim.lr_scheduler.StepLR(opt_e, step_size=10**4, gamma=1)
+  sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
+  optimizers = {'experimenter':opt_e, 'adversary':opt_a}
+  schedulers = {'experimenter':sched_e, 'adversary':sched_a}
+
+  init_design_raw = np.array(init_design_raw, ndmin=2)
+  init_A_raw = np.array(init_A_raw, ndmin=2)
+  ad = advOpt.AdvOpt(fim=fim, make_design=torch.sigmoid,
+                      optimizers=optimizers, schedulers=schedulers,
+                      init_design_raw=init_design_raw,
+                      init_A_raw=init_A_raw,
+                      report_every=5, text_progress=show_progress)
+  ad.optimize(gda_its)
+  output = ad.stacked_output()
+  file_name = "./outputs/" + name + ".pkl"
+  with open(file_name, 'wb') as outfile:
+    pickle.dump(output, outfile)
 
 
-fim = Poisson_FIM(omega=(2., 1.))
-
-##############
-##VECTOR FIELD
-##############
-
-logit_design_grid, eta11_grid = np.meshgrid(np.linspace(-0.65, 0.65, 10),
-                                            np.linspace(-0.2, -0.14, 11))
-logit_design_grad_grid = np.zeros_like(logit_design_grid)
-eta11_grad_grid = np.zeros_like(eta11_grid)
-for i in range(eta11_grid.shape[0]):
-  for j in range(eta11_grid.shape[1]):
-    logit_design = torch.tensor([logit_design_grid[i,j]], requires_grad=True)
-    eta11 = torch.tensor(eta11_grid[i,j], requires_grad=True)
-    eta = torch.zeros(2, dtype=torch.float32)
-    eta[1] += eta11
-    A = fim.makeA(eta)
-    design = torch.sigmoid(logit_design)
-    objective = fim.estimateK(design, A)
-    objective.backward()
-    logit_design_grad_grid[i,j] = float(logit_design.grad)
-    eta11_grad_grid[i,j] = float(eta11.grad)
-
-vector_field_plot = plt.quiver(logit_design_grid, eta11_grid,
-                               -logit_design_grad_grid, eta11_grad_grid/1000,
-                               angles='xy')
-
-vector_field_plot.axes.set_xlabel(r'$\lambda$')
-vector_field_plot.axes.set_ylabel(r'$\eta_{11}$')
-
-##############
-##OPTIMISATION
-##############
-
-dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
-opt_e = torch.optim.SGD(params=[dummy], lr=1e-2)
-opt_a = torch.optim.SGD(params=[dummy], lr=1e-3)
-sched_e = torch.optim.lr_scheduler.StepLR(opt_e, step_size=10**4, gamma=1)
-sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
-optimizers = {'experimenter':opt_e, 'adversary':opt_a}
-schedulers = {'experimenter':sched_e, 'adversary':sched_a}
-
-ad1 = advOpt.AdvOpt(fim=fim, make_design=torch.sigmoid,
-                    optimizers=optimizers, schedulers=schedulers,
-                    init_design_raw=[-0.2],
-                    init_A_raw=(0., -0.15),
-                    report_every=5, text_progress=False)
-ad1.optimize(25000)
-output1 = ad1.stacked_output()
-
-opt_e = torch.optim.SGD(params=[dummy], lr=1e-2)
-opt_a = torch.optim.SGD(params=[dummy], lr=1e-4)
-sched_e = torch.optim.lr_scheduler.StepLR(opt_e, step_size=10**4, gamma=1)
-sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
-optimizers = {'experimenter':opt_e, 'adversary':opt_a}
-schedulers = {'experimenter':sched_e, 'adversary':sched_a}
-
-ad2 = advOpt.AdvOpt(fim=fim, make_design=torch.sigmoid,
-                    optimizers=optimizers, schedulers=schedulers,
-                    init_design_raw=[-0.2],
-                    init_A_raw=(0., -0.15),
-                    report_every=5, text_progress=False)
-ad2.optimize(25000)
-output2 = ad2.stacked_output()
-
-opt_e = torch.optim.SGD(params=[dummy], lr=1e-2)
-opt_a = torch.optim.SGD(params=[dummy], lr=1e-5)
-sched_e = torch.optim.lr_scheduler.StepLR(opt_e, step_size=10**4, gamma=1)
-sched_a = torch.optim.lr_scheduler.StepLR(opt_a, step_size=10**4, gamma=1)
-optimizers = {'experimenter':opt_e, 'adversary':opt_a}
-schedulers = {'experimenter':sched_e, 'adversary':sched_a}
-
-ad3 = advOpt.AdvOpt(fim=fim, make_design=torch.sigmoid,
-                    optimizers=optimizers, schedulers=schedulers,
-                    init_design_raw=[-0.2],
-                    init_A_raw=(0., -0.15),
-                    report_every=5, text_progress=False)
-ad3.optimize(25000)
-output3 = ad3.stacked_output()
-
-logit = lambda x: np.log(x/(1-x))
-dot_indices = range(99, 5000, 100)
-toplot = [(output1, 'b'), (output2, 'g'), (output3, 'r')]
-for (o, col) in toplot:
-  plt.plot(logit(o['design'][dot_indices,0]),
-           np.log(o['A'][dot_indices,0,0]), 'o' + col)
-  plt.plot(logit(o['design'][:,0]), np.log(o['A'][:,0,0]), '-' + col)
-
-plt.xlim([-0.7, 0.7])
-plt.ylim([-0.203, -0.137])
-
-plt.tight_layout()
-plt.savefig('plots/poisson_vector_field.pdf')
-
-plt.figure()
-for (o, _) in toplot:
-  plt.plot(o['iterations'], logit(o['design'][:,0]))
-plt.ylim([-0.7, 0.7])
-plt.xlabel('Iterations')
-plt.ylabel(r'$\lambda$')
-plt.tight_layout()
-plt.savefig('plots/poisson_traceplot_design.pdf')
-
-plt.figure()
-for (o, _) in toplot:
-  plt.plot(o['iterations'], np.log(o['A'][:,0,0]))
-plt.ylim([-0.205, -0.135])
-plt.xlabel('Iterations')
-plt.ylabel(r'$\eta_{11}$')
-plt.tight_layout()
-plt.savefig('plots/poisson_traceplot_param.pdf')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Gradient descent ascent optimal design for a Poisson model")
+    parser.add_argument("--gda-iterations", default=25000, type=int)
+    parser.add_argument("--lr-e", default=1e-2, type=float)
+    parser.add_argument("--lr-a", default=1e-4, type=float)
+    parser.add_argument("--init_design_raw", default=-0.2, type=float)
+    parser.add_argument("--init_A_raw", nargs="+", default=[0., -0.15], type=float)
+    parser.add_argument('--show-progress', dest='show_progress', action='store_true')
+    parser.set_defaults(show_progress=False)
+    parser.add_argument("--name", default="pk_example", type=str)
+    args = parser.parse_args()
+    main(args.gda_iterations, args.lr_e, args.lr_a, args.init_design_raw,
+         args.init_A_raw, args.show_progress, args.name)

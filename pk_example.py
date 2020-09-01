@@ -1,10 +1,10 @@
 import torch
 from torch.distributions import LogNormal
 import numpy as np
-import advOpt
 from time import time
 import pickle
 import argparse
+import advOpt
 
 ##############
 ##DEFINITIONS

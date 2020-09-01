@@ -2,14 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 
-with open('geostats_example.pkl', 'rb') as infile:
-    pairs = pickle.load(infile)
+scales = [0.01, 0.02, 0.04, 0.08]
+outputs = []
+
+for i in range(4):
+    filename = 'geo' + str(i+1) + 'pkl'
+    with open(filename, 'rb') as infile:
+        outputs.append(pickle.load(infile))
 
 ##################
 ## EXECUTION TIMES
 ##################
-
-scales, outputs = zip(*pairs)
 
 run_times = [o['time'][-1] for o in outputs]
 mean_run_time = np.mean(np.array(run_times))
