@@ -8,14 +8,14 @@ import pickle
 ## IMPORT DESIGN
 ################
 
-with open('pk_example.pkl', 'rb') as infile:
-    out_GDA, out_SGD = pickle.load(infile)
+with open('outputs/pk_gda.pkl', 'rb') as infile:
+    out_GDA = pickle.load(infile)
 
-output_GDA_list, final_design_GDA_list, pe_time_GDA_list = zip(*out_GDA)
-output_SGD_list, final_design_SGD_list, pe_time_SGD_list = zip(*out_SGD)
+with open('outputs/pk_sgd.pkl', 'rb') as infile:
+    out_SGD = pickle.load(infile)
 
-design_adv = torch.tensor(final_design_GDA_list[0])
-design_fig = torch.tensor(final_design_SGD_list[0])
+design_adv = torch.tensor(out_GDA['final_design'][0,:])
+design_fig = torch.tensor(out_SGD['final_design'][0,:])
 
 #######################
 ## PRIOR AND MODEL
