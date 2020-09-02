@@ -6,7 +6,7 @@ scales = [0.01, 0.02, 0.04, 0.08]
 outputs = []
 
 for i in range(4):
-    filename = 'geo' + str(i+1) + 'pkl'
+    filename = './outputs/geo' + str(i+1) + '.pkl'
     with open(filename, 'rb') as infile:
         outputs.append(pickle.load(infile))
 
@@ -25,7 +25,7 @@ print('Mean run time {:.1f}s'.format(mean_run_time))
 for i in range(len(scales)):
     s = scales[i]
     o = outputs[i]
-    out_design = o['design']
+    out_design = o['design'].squeeze(1)
 
     plt.figure()
     for j in range(out_design.shape[1]):
