@@ -30,35 +30,26 @@ LIM.FUNC = function(i, j, d){
 }
 
 ### SIMULATION STUDY  ###
-##library(readr)
-##initial_states <- as.matrix(read_csv("~/Documents/Python/FIG/initial_states.csv", col_names = FALSE))
-initial_states = runif(15,-1,1) # Times are scaled from [0,24] to [-1,1]
-initial_states = matrix(initial_states, nrow=1)
-
-ace_out = ace(utility = pk_util,
-              start.d = initial_states,
-              N1 = 20,
-              N2 = 10,
-              limits = LIM.FUNC,
-              progress = TRUE)
-
-ace_out$phase1.trace ## Utilities
-12 * (sort(ace_out$phase1.d) + 1) ## Design after phase 1
-12 * (sort(ace_out$phase2.d) + 1) ## Design after phase 2
-
-##OUTPUT BELOW
-
-## 44:02 minutes
-
-##> ace_out$phase1.trace ## Utilities
-## [1] 5.397719 5.377319 5.376047 6.381220 6.379366 6.458853 6.331691      Inf
-## [9]      Inf      Inf 6.380607 6.391928 6.354861 6.347133      Inf 6.359931
-##[17] 6.410248 6.417931 6.370174      Inf 6.370644
-##> 12 * (sort(ace_out$phase1.d) + 1) ## Design after phase 1
-## [1]  2.033192  7.011619  7.053216  7.519382  8.512532  9.081435  9.084031
-## [8] 10.551505 11.551675 12.596064 13.677109 14.065566 16.630420 17.380348
-##[15] 20.003635
-##> 12 * (sort(ace_out$phase2.d) + 1) ## Design after phase 2
-## [1]  2.033192  7.011619  7.053216  7.519382  8.512532  9.081435  9.084031
-## [8] 10.551505 11.551675 12.596064 13.677109 14.065566 16.630420 17.380348
-##[15] 20.003635
+nreps = 30
+times = vector(mode="list", length=nreps)
+traces = vector(mode="list", length=nreps)
+design_phase1 = vector(mode="list", length=nreps)
+design_phase2 = vector(mode="list", length=nreps)
+for (i in 1:30) {
+    cat("Iteration ", i, "\n")
+    set.seed(i)
+    initial_states = runif(15,-1,1) # Times will be scaled from [-1,1] to [0,24]
+    initial_states = matrix(initial_states, nrow=1)
+    start_time = Sys.time()
+    ace_out = ace(utility = pk_util,
+                  start.d = initial_states,
+                  N1 = 20,
+                  N2 = 10,
+                  limits = LIM.FUNC,
+                  progress = TRUE)
+    times[[i]] = Sys.time() - start_time
+    traces[[i]] = ace_out$phase1.trace
+    design_phase1[[i]] = 12 * (sort(ace_out$phase1.d) + 1)
+    design_phase2[[i]] = 12 * (sort(ace_out$phase2.d) + 1)
+}
+save(times, traces, design_phase1, design_phase2, file="../outputs/pk.Rdata")
