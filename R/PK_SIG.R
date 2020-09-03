@@ -35,7 +35,7 @@ times = vector(mode="list", length=nreps)
 traces = vector(mode="list", length=nreps)
 design_phase1 = vector(mode="list", length=nreps)
 design_phase2 = vector(mode="list", length=nreps)
-for (i in 1:30) {
+for (i in 1:nreps) {
     cat("Iteration ", i, "\n")
     set.seed(i)
     initial_states = runif(15,-1,1) # Times will be scaled from [-1,1] to [0,24]
