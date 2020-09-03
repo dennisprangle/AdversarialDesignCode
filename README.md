@@ -25,3 +25,8 @@ python3 geostats_example.py --length-scale 0.04 --name "geo3"
 python3 geostats_example.py --length-scale 0.08 --name "geo4"
 python3 geostats_plots.py
 ```
+
+There is a R subdirectory to run a comparison analysis using the `acebayes` package. This can be run using the following command. Note you should be in the R directory when this is run. Also, this analysis takes roughly 1 day to run.
+```bash
+R CMD BATCH --no-save PK_SIG.R
+```
