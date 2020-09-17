@@ -28,8 +28,7 @@ pk_util<-function(d, B){
 nreps = 30
 times = vector(mode="list", length=nreps)
 traces = vector(mode="list", length=nreps)
-design_phase1 = vector(mode="list", length=nreps)
-design_phase2 = vector(mode="list", length=nreps)
+design_out = vector(mode="list", length=nreps)
 for (i in 1:nreps) {
     cat("Iteration ", i, "\n")
     set.seed(i)
@@ -39,22 +38,19 @@ for (i in 1:nreps) {
     ace_out = ace(utility = pk_util,
                   start.d = initial_states,
                   N1 = 20,
-                  N2 = 10,
+                  N2 = 0,
                   progress = TRUE)
-    times[[i]] = Sys.time() - start_time
+    times[[i]] = difftime(Sys.time(), start_time, units="secs")
     traces[[i]] = ace_out$phase1.trace
-    design_phase1[[i]] = 12 * (sort(ace_out$phase1.d) + 1)
-    design_phase2[[i]] = 12 * (sort(ace_out$phase2.d) + 1)
+    design_out[[i]] = 12 * (sort(ace_out$phase1.d) + 1)
 }
 
 ## Convert results into a single data frame and save as csv
 times = unlist(times)
 traces = do.call(rbind, traces)
 colnames(traces) = paste0("traces_", 1:ncol(traces))
-design_phase1 = do.call(rbind, design_phase1)
-colnames(design_phase1) = paste0("design_phase1_", 1:ncol(design_phase1))
-design_phase2 = do.call(rbind, design_phase2)
-colnames(design_phase2) = paste0("design_phase2_", 1:ncol(design_phase2))
-results = cbind(times, traces, design_phase1, design_phase2)
+design_out = do.call(rbind, design_out)
+colnames(design_out) = paste0("design_", 1:ncol(design_out))
+results = cbind(times, traces, design_out)
 
-write.csv(file="../outputs/pk_ace.csv", row.names=FALSE)
+write.csv(results, file="../outputs/pk_SIG.csv", row.names=FALSE)
