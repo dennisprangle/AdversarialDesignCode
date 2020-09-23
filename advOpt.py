@@ -64,7 +64,7 @@ class FIM:
       temp = torch.det(temp)
     else:
       temp = temp.diagonal(dim1=1,dim2=2).sum(dim=1)
-    return torch.log(temp)
+    return temp
 
   def eta_dim(self):
     """Number of entries required in eta vector
