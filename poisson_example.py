@@ -49,7 +49,7 @@ class Poisson_FIM(advOpt.FIM):
       temp = torch.det(temp)
     else:
       temp = temp.diagonal(dim1=1,dim2=2).sum(dim=1)
-    return torch.log(temp)
+    return temp
 
 def main(gda_its, lr_e, lr_a, init_design_raw, init_A_raw, show_progress, name):
   fim = Poisson_FIM(omega=(2., 1.))

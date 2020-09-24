@@ -56,7 +56,7 @@ class geostats_FIM(advOpt.FIM):
       temp = torch.det(temp)
     else:
       temp = temp.diagonal(dim1=1,dim2=2).sum(dim=1)
-    return torch.log(temp)
+    return temp
 
 
 def penalty(x, max_abs_x=0.5, magnitude=1e1):
