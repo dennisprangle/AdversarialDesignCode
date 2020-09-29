@@ -8,7 +8,7 @@ import pickle
 ## IMPORT DESIGN
 ################
 
-with open('outputs/pk_gda.pkl', 'rb') as infile:
+with open('outputs/pk_gda_K1.pkl', 'rb') as infile:
     out_GDA = pickle.load(infile)
 
 with open('outputs/pk_sgd.pkl', 'rb') as infile:
@@ -53,6 +53,7 @@ x0_adv = get_x(theta0, design_adv)
 x0_fig = get_x(theta0, design_fig)
 y0_adv = x0_adv + noise0
 y0_fig = x0_fig + noise0
+print("True parameters", theta0)
 
 ######################
 ## IMPORTANCE SAMPLING
@@ -84,15 +85,6 @@ plt.figure()
 
 plt.plot(theta_is[0:5000, xdim], theta_is[0:5000, ydim], "go", alpha=0.3)
 
-tokeep = (w_adv > 1e-6)
-tt = theta_is[tokeep,:]
-ww = w_adv[tokeep]
-ww = ww.detach().numpy()
-ww /= np.sum(ww)
-ii = np.random.choice(len(ww), size=nplot, replace=True, p=ww)
-post = tt[ii,:]
-plt.plot(post[:, xdim], post[:, ydim], "b+", alpha=0.5)
-
 tokeep = (w_fig > 1e-6)
 tt = theta_is[tokeep,:]
 ww = w_fig[tokeep]
@@ -102,7 +94,16 @@ ii = np.random.choice(len(ww), size=nplot, replace=True, p=ww)
 post = tt[ii,:]
 plt.plot(post[:, xdim], post[:, ydim], "r^", alpha=0.5)
 
-plt.plot(theta0[xdim], theta0[ydim], "kx", markersize=10)
+tokeep = (w_adv > 1e-6)
+tt = theta_is[tokeep,:]
+ww = w_adv[tokeep]
+ww = ww.detach().numpy()
+ww /= np.sum(ww)
+ii = np.random.choice(len(ww), size=nplot, replace=True, p=ww)
+post = tt[ii,:]
+plt.plot(post[:, xdim], post[:, ydim], "b+", alpha=1.0, markersize=10)
+
+#plt.plot(theta0[xdim], theta0[ydim], "kx", markersize=10)
 
 plt.xlabel(r'$\theta_{:d}$'.format(xdim+1))
 plt.ylabel(r'$\theta_{:d}$'.format(ydim+1))
