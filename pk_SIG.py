@@ -41,14 +41,13 @@ def objective(design):
   print('SIG {:.3f}'.format(sig.numpy()))
   return -sig.numpy()
 
-
-np.set_printoptions(precision=3, suppress=True)
-
-design0 = np.random.uniform(0.,24.,15)
-bounds = Bounds(lb = np.zeros(15), ub = 24.*np.ones(15))
-start_time = time()
-out = minimize(objective, design0, method='L-BFGS-B', bounds=bounds)
-print('Time taken: {:1f} seconds'.format(time() - start_time))
+if __name__ == "__main__":
+  np.set_printoptions(precision=3, suppress=True)
+  design0 = np.random.uniform(0.,24.,15)
+  bounds = Bounds(lb = np.zeros(15), ub = 24.*np.ones(15))
+  start_time = time()
+  out = minimize(objective, design0, method='L-BFGS-B', bounds=bounds)
+  print('Time taken: {:1f} seconds'.format(time() - start_time))
 
 
 
