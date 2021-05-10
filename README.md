@@ -12,10 +12,11 @@ python3 poisson_plots.py
 ```
 
 ```bash
-python3 pk_example.py --gda-iterations 100000 --nsamples 100 --nparallel 100 --seed 123 --name "pk_gda_K100"
-python3 pk_example.py --gda-iterations 100000 --nsamples 10 --nparallel 100 --seed 123 --name "pk_gda_K10"
-python3 pk_example.py --gda-iterations 100000 --nsamples 1 --nparallel 100 --seed 123 --name "pk_gda_K1"
-python3 pk_example.py --gda-iterations 100000 --nsamples 1 --nparallel 100 --seed 123 --sgd --name "pk_sgd"
+python3 pk_example.py --gda-iterations 100000 --nsamples 100 --nparallel 100 --seed 123 --point-exchange --name "pk_gda_K100"
+python3 pk_example.py --gda-iterations 100000 --nsamples 10 --nparallel 100 --seed 123 --point-exchange --name "pk_gda_K10"
+python3 pk_example.py --gda-iterations 100000 --nsamples 1 --nparallel 100 --seed 123 --point-exchange --name "pk_gda_K1"
+python3 pk_example.py --gda-iterations 100000 --nsamples 1 --nparallel 100 --seed 123 --sgd --point-exchange --name "pk_sgd"
+python3 pk_example.py --gda-iterations 100000 --nsamples 1 --nparallel 100 --seed 123 --gaps --name "pk_gaps"
 python3 pk_plots.py
 python3 pk_posteriors.py
 ```

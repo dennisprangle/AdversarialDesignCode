@@ -18,6 +18,9 @@ with open('outputs/pk_gda_K1.pkl', 'rb') as infile:
 with open('outputs/pk_sgd.pkl', 'rb') as infile:
     out_SGD = pickle.load(infile)
 
+with open('outputs/pk_gda_gaps.pkl', 'rb') as infile:
+    out_gaps = pickle.load(infile)
+
 ##################
 ## EXECUTION TIMES
 ##################
@@ -105,6 +108,37 @@ plt.xlabel('Iterations')
 plt.ylabel('J objective')
 plt.tight_layout()
 plt.savefig('plots/J_SGD_trace.pdf')
+
+plt.figure()
+gaps_design0 = out_gaps['design'][:,0,:]
+gaps_its = out_gaps['iterations']
+for i in range(gaps_design0.shape[1]):
+  plt.plot(gaps_its, gaps_design0[:,i])
+plt.xlabel('Iterations')
+plt.ylabel('Observation time')
+plt.tight_layout()
+plt.savefig('plots/design_gaps_trace.pdf')
+
+plt.figure()
+gaps_K = out_gaps['objectiveK']
+gaps_its = out_gaps['iterations']
+for i in range(gaps_K.shape[1]):
+    plt.plot(gaps_its, gaps_K[:,i], color='b', alpha=0.2)
+plt.xlabel('Iterations')
+plt.ylabel('K objective')
+plt.yscale('symlog')
+plt.tight_layout()
+plt.savefig('plots/K_gaps_trace.pdf')
+
+fig_J_gaps = plt.figure()
+gaps_J = out_gaps['objectiveJ']
+for i in range(gaps_K.shape[1]):
+    plt.plot(gaps_its, gaps_J[:,i], color='b', alpha=0.2)
+plt.xlabel('Iterations')
+plt.ylabel('J objective')
+plt.tight_layout()
+plt.savefig('plots/J_SGD_trace.pdf')
+
 
 #####################
 ## TRACE PLOTS FOR VARYING K
@@ -198,3 +232,16 @@ plt.xlabel('Observation index')
 plt.ylabel('Observation time')
 plt.tight_layout()
 plt.savefig('plots/SGD_and_PE_designs.pdf')
+
+plt.figure()
+gda_designs = out_gaps['design'][-1,...]
+gda_designs = np.sort(gda_designs, 1)
+design_index = [i+1 for i in range(15)]
+design_index = np.tile(design_index, gda_designs.shape[0])
+gda_designs = np.hstack(gda_designs)
+plt.scatter(design_index, gda_designs, color='b', alpha=0.05)
+plt.ylim([0.,24.])
+plt.xlabel('Observation index')
+plt.ylabel('Observation time')
+plt.tight_layout()
+plt.savefig('plots/gaps_designs.pdf')

@@ -29,15 +29,22 @@ class PK_FIM(advOpt.FIM):
     grad2 = -x/theta3
     jacobian = torch.stack((grad0, grad1, grad2), dim=3)
     fim = torch.matmul(jacobian.transpose(2,3), jacobian)
+    ## nb a multipicative constant of 0.01 in fim is neglected
+    ## as it doesn't affect optimisation
     return fim
+
+
+def penalty(design, min_gap=0.25, magnitude=1e3):
+  gaps = design[:, 1:15] - design[:, 0:14]
+  return magnitude * torch.sum(torch.relu(min_gap - gaps), dim=1)
 
 
 ##############
 ##OPTIMISATION
 ##############
 
-def main(gda_its, nsamples, nparallel, sgd, ttur, show_progress, point_exchange,
-         seed, name):
+def main(gda_its, nsamples, nparallel, sgd, ttur, gaps, show_progress,
+         point_exchange, seed, name):
   torch.manual_seed(seed)
   fim = PK_FIM(nsamples)
   dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
@@ -52,6 +59,7 @@ def main(gda_its, nsamples, nparallel, sgd, ttur, show_progress, point_exchange,
   else:
     sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : 1.)
     sched_a = torch.optim.lr_scheduler.LambdaLR(opt_a, lambda n : 1.)
+
   optimizers = {'experimenter':opt_e, 'adversary':opt_a}
   schedulers = {'experimenter':sched_e, 'adversary':sched_a}
 
@@ -66,6 +74,9 @@ def main(gda_its, nsamples, nparallel, sgd, ttur, show_progress, point_exchange,
                      init_design_raw=init_design, init_A_raw=init_A_raw,
                      report_every=100, track_J=track_J,
                      text_progress=show_progress)
+  if gaps == True:
+    ad.penalty = penalty
+
   ad.optimize(gda_its)
   output = ad.stacked_output()
   start_time = time()
@@ -87,13 +98,16 @@ if __name__ == "__main__":
     parser.set_defaults(sgd=False)
     parser.add_argument('--ttur', dest='ttur', action='store_true')
     parser.set_defaults(ttur=False)
+    parser.add_argument('--gaps', dest='gaps', action='store_true')
+    parser.set_defaults(gaps=False)
     parser.add_argument("--nparallel", default=10, type=int)
     parser.add_argument('--show-progress', dest='show_progress', action='store_true')
     parser.set_defaults(show_progress=False)
     parser.add_argument('--point-exchange', dest='point_exchange', action='store_true')
-    parser.set_defaults(point_exchange=True)
+    parser.set_defaults(point_exchange=False)
     parser.add_argument("--seed", default=1, type=int)
     parser.add_argument("--name", default="pk_example", type=str)
     args = parser.parse_args()
-    main(args.gda_iterations, args.nsamples, args.nparallel, args.sgd, args.ttur, 
-         args.show_progress, args.point_exchange, args.seed, args.name)
+    main(args.gda_iterations, args.nsamples, args.nparallel, args.sgd,
+         args.ttur, args.gaps, args.show_progress, args.point_exchange,
+         args.seed, args.name)
