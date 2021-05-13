@@ -1,8 +1,10 @@
-## Adversarial design code
+# Adversarial design code
 
 The repository is code used in the paper "Bayesian experimental design without posterior calculations: an adversarial approach" (https://arxiv.org/abs/1904.05703).
 
-To reproduce the results in the paper run
+## Code for paper
+
+To reproduce the results in the paper run:
 
 ```bash
 python3 poisson_example.py --lr-a 1e-3 --name "poisson3"
@@ -43,3 +45,15 @@ Finally, to produce plots for the methods of Foster et al (produced using code i
 python3 pk_plots_foster.py
 ```
 
+## Extra tuning analysis
+
+This code is for an investigation of alternative tuning choices in the `acebayes` package. The detailed output is not included in the paper, only in the reply to reviewers.
+
+Enter the R subdirectory and run using the following command. This takes roughly 3 days to run.
+```bash
+R CMD BATCH --no-save PK_SIG_tuning.R
+```
+After transferring the csv files produced to the `outputs` folder, summary plots can be produced using
+```bash
+python3 pk_plots_R_tuning.py
+```
