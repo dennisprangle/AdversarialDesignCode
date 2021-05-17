@@ -19,6 +19,8 @@ python3 pk_example.py --gda-iterations 100000 --nsamples 10 --nparallel 100 --se
 python3 pk_example.py --gda-iterations 100000 --nsamples 1 --nparallel 100 --seed 123 --point-exchange --name "pk_gda_K1"
 python3 pk_example.py --gda-iterations 100000 --nsamples 1 --nparallel 100 --seed 123 --sgd --point-exchange --name "pk_sgd"
 python3 pk_example.py --gda-iterations 100000 --nsamples 1 --nparallel 100 --seed 123 --gaps --name "pk_gaps"
+python3 pk_example.py --gda-iterations 500000 --nsamples 1 --nparallel 1 --seed 123 --multiplicative-noise --name "pk_multi"
+python3 pk_example.py --gda-iterations 500000 --nsamples 1 --nparallel 1 --seed 123 --multiplicative-noise --gaps --name "pk_multi_gaps"
 python3 pk_plots.py
 python3 pk_posteriors.py
 ```
@@ -35,14 +37,19 @@ There is a R subdirectory to run a comparison analysis using the `acebayes` pack
 ```bash
 R CMD BATCH --no-save PK_SIG.R
 ```
-After transferring the csv file produced to the `outputs` folder, plot for the paper can be produced using
+After transferring the csv file produced to the `outputs` folder, plots for the paper can be produced using
 ```bash
 python3 pk_plots_R.py
 ```
 
-Finally, to produce plots for the methods of Foster et al (produced using code in [https://github.com/dennisprangle/pyro/tree/sgboed-reproduce]), transfer its results to the outputs folder and run
+To produce plots for the methods of Foster et al (produced using code in [https://github.com/dennisprangle/pyro/tree/sgboed-reproduce]), transfer its results to the outputs folder and run
 ```bash
 python3 pk_plots_foster.py
+```
+
+Finally, to produce the boxplots comparing design from all methods, run
+```bash
+python3 pk_design_diagnostics.py
 ```
 
 ## Extra tuning analysis
