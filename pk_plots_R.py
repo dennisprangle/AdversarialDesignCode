@@ -21,7 +21,7 @@ print('Mean ACE run time {:.1f}s'.format(mean_ace_run_time))
 #####################
 
 plt.figure()
-colnames = out_ACE.keys()[22:37]
+colnames = ['design_' + str(i+1) for i in range(15)]
 ace_designs = out_ACE[colnames].to_numpy()
 ace_designs = np.sort(ace_designs, 1)
 design_index = [i+1 for i in range(15)]

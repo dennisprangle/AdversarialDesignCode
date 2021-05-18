@@ -63,7 +63,7 @@ class PK_FIM(advOpt.FIM):
     score = torch.autograd.grad(log_likelihood, theta, create_graph=True)
     score = score[0]
     fim = torch.matmul(score.unsqueeze(1), score.unsqueeze(0))
-    fim = torch.reshape(fim, (1,1,3,3)) # Put back in dims for repeats
+    fim = torch.reshape(fim, (1,1,3,3)) # Put back in dimensions discarded at start
     return fim
 
 
