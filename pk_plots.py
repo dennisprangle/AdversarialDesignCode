@@ -18,7 +18,7 @@ with open('outputs/pk_gda_K1.pkl', 'rb') as infile:
 with open('outputs/pk_sgd.pkl', 'rb') as infile:
     out_SGD = pickle.load(infile)
 
-with open('outputs/pk_gda_gaps.pkl', 'rb') as infile:
+with open('outputs/pk_gaps.pkl', 'rb') as infile:
     out_gaps = pickle.load(infile)
 
 ##################
@@ -245,3 +245,35 @@ plt.xlabel('Observation index')
 plt.ylabel('Observation time')
 plt.tight_layout()
 plt.savefig('plots/gaps_designs.pdf')
+
+#####################
+## COMPARISONS OF DESIGNS
+#####################
+
+parameters = {'axes.labelsize':'x-large', 'xtick.labelsize':'x-large',
+              'ytick.labelsize':'medium'}
+plt.rcParams.update(parameters)
+
+with open('outputs/pk_multi.pkl', 'rb') as infile:
+    out_multi = pickle.load(infile)
+
+with open('outputs/pk_multi_gaps.pkl', 'rb') as infile:
+    out_multi_gaps = pickle.load(infile)
+
+design = out_GDA_K1['design'][-1,0,:]
+design_gaps = out_gaps['design'][-1,0,:]
+design_multi = out_multi['design'][-1,0,:]
+design_multi_gaps = out_multi_gaps['design'][-1,0,:]
+
+plt.figure(figsize=[6.4,2.4])
+plt.scatter(design, 3*np.ones(15), marker="|", s=800)
+plt.scatter(design_gaps, 2*np.ones(15), marker="|", s=800)
+plt.scatter(design_multi, 1*np.ones(15), marker="|", s=800)
+plt.scatter(design_multi_gaps, 0*np.ones(15), marker="|", s=800)
+plt.xlabel('Observation time')
+labels = ["No gaps\nno multiplicative noise","Gaps\nno multiplicative noise",
+          "No gaps\nmultiplicative noise", "Gaps\nmultiplicative noise"]
+plt.yticks(ticks=(3,2,1,0), labels=labels)
+plt.ylim([-0.5,3.5])
+plt.tight_layout()
+plt.savefig('plots/pk_designs.pdf')
