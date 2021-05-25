@@ -68,7 +68,8 @@ class PK_FIM(advOpt.FIM):
 
 
 def penalty(design, min_gap=0.25, magnitude=1e3):
-  gaps = design[:, 1:15] - design[:, 0:14]
+  sorted_design, _ = torch.sort(design)
+  gaps = sorted_design[:, 1:15] - sorted_design[:, 0:14]
   return magnitude * torch.sum(torch.relu(min_gap - gaps), dim=1)
 
 
@@ -76,7 +77,7 @@ def penalty(design, min_gap=0.25, magnitude=1e3):
 ##OPTIMISATION
 ##############
 
-def main(gda_its, nsamples, nparallel, sgd, ttur, gaps, multi,
+def main(gda_its, nsamples, learning_rate, nparallel, sgd, ttur, gaps, multi,
          show_progress, point_exchange, seed, name):
   if multi == True:
     if nsamples != 1 or nparallel != 1:
@@ -85,11 +86,11 @@ def main(gda_its, nsamples, nparallel, sgd, ttur, gaps, multi,
   torch.manual_seed(seed)
   fim = PK_FIM(nsamples, multi)
   dummy = torch.tensor(0.) #Because optimizer initialisation needs a target
-  opt_e = torch.optim.Adam(params=[dummy])
+  opt_e = torch.optim.Adam(params=[dummy], lr=learning_rate)
   if sgd == True:
     opt_a = torch.optim.Adam(params=[dummy], lr=0.) # i.e. no update of A
   else:
-    opt_a = torch.optim.Adam(params=[dummy])
+    opt_a = torch.optim.Adam(params=[dummy], lr=learning_rate)
   if ttur == True:
     sched_e = torch.optim.lr_scheduler.LambdaLR(opt_e, lambda n : ((n+1) ** -0.9))
     sched_a = torch.optim.lr_scheduler.LambdaLR(opt_a, lambda n : ((n+1) ** -0.6))
@@ -135,6 +136,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gradient descent ascent optimal design for a pharmacokinetic model")
     parser.add_argument("--nsamples", default=1, type=int)
     parser.add_argument("--gda-iterations", default=30000, type=int)
+    parser.add_argument("--learning-rate", default=0.001, type=float)
     parser.add_argument('--sgd', dest='sgd', action='store_true')
     parser.set_defaults(sgd=False)
     parser.add_argument('--ttur', dest='ttur', action='store_true')
@@ -152,6 +154,6 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=1, type=int)
     parser.add_argument("--name", default="pk_example", type=str)
     args = parser.parse_args()
-    main(args.gda_iterations, args.nsamples, args.nparallel, args.sgd,
-         args.ttur, args.gaps, args.multi, args.show_progress,
-         args.point_exchange, args.seed, args.name)
+    main(args.gda_iterations, args.nsamples, args.learning_rate,
+         args.nparallel, args.sgd, args.ttur, args.gaps, args.multi,
+         args.show_progress, args.point_exchange, args.seed, args.name)

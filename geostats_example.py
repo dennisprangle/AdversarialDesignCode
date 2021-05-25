@@ -110,7 +110,7 @@ if __name__ == "__main__":
     parser.add_argument('--show-progress', dest='show_progress', action='store_true')
     parser.set_defaults(show_progress=False)
     parser.add_argument("--seed", default=1, type=int)
-    parser.add_argument("--name", default="pk_example", type=str)
+    parser.add_argument("--name", default="geostats_example", type=str)
     args = parser.parse_args()
     main(args.ndesign, args.gda_iterations, args.length_scale, args.ttur,
          args.show_progress, args.seed, args.name)
