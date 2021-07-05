@@ -26,7 +26,8 @@ plt.savefig('plots/pk_tuning_times.pdf')
 ## OUTPUT DESIGN PLOTS
 #####################
 
-plt.ion()
+##plt.ion() # Uncomment to see all exploratory plots
+
 colnames = ['design_' + str(i+1) for i in range(15)]
 ace_grouped = out_ACE.groupby(['mc_size_gp'])
 
@@ -48,7 +49,7 @@ for pars, dat in ace_grouped:
 ## CODE TO ESTIMATE EXPECTED SIG
 ################################
 
-fim = pk_example.PK_FIM(nsamples=100) 
+fim = pk_example.PK_FIM(nsamples=100, multi=True)
 
 def pk_mean(theta, design):
   design = design.unsqueeze(1)
@@ -111,20 +112,17 @@ def estimate_SIG(design, n_outer=1000, n_inner=1000):
 ## ESTIMATE EXPECTED SIG
 ################################
 sig = []
-labels = []
-for pars, dat in ace_grouped:
-    gp = pars
+for _, dat in ace_grouped:
     ace_designs = dat[colnames].to_numpy()
     ace_designs = torch.tensor(ace_designs)
     ace_SIG = estimate_SIG(ace_designs)
-    next_label = 'gp {}'.format(gp)
-    labels += [next_label]
     sig += [ace_SIG]
 
 plt.figure()
 plt.boxplot(sig, whis=(0,100))
 locs, _ = plt.xticks()
+plt.xlabel("Monte Carlo sample size")
 plt.ylabel("SIG objective estimate")
-plt.xticks(ticks=locs, labels=labels)
+plt.xticks(ticks=locs, labels=mc_size)
 plt.tight_layout()
 plt.savefig('plots/pk_tuning_SIGs.pdf')
