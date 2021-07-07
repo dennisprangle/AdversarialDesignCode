@@ -27,6 +27,8 @@ with open('outputs/pk_gaps.pkl', 'rb') as infile:
 
 mean_gda_run_time = out_GDA_K1['time'][-1]/100.
 print('Mean GDA run time {:.1f}s'.format(mean_gda_run_time))
+mean_gaps_run_time = out_gaps['time'][-1]/100.
+print('Mean GDA gaps run time {:.1f}s'.format(mean_gaps_run_time))
 mean_sgd_run_time = out_SGD['time'][-1]/100.
 print('Mean SGD run time {:.1f}s'.format(mean_sgd_run_time))
 
@@ -259,6 +261,9 @@ with open('outputs/pk_multi.pkl', 'rb') as infile:
 
 with open('outputs/pk_multi_gaps.pkl', 'rb') as infile:
     out_multi_gaps = pickle.load(infile)
+
+print('GDA multi run time {:.1f}s'.format(out_multi['time'][-1]))
+print('GDA multi gaps run time {:.1f}s'.format(out_multi_gaps['time'][-1]))
 
 design = out_GDA_K1['design'][-1,0,:]
 design_gaps = out_gaps['design'][-1,0,:]
